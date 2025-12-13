@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate, Link } from 'react-router-dom';
+import { toast } from 'react-toastify'; // ✅ IMPORT TOAST
 import { User, Lock, Eye, EyeOff, AlertTriangle, LogOut } from 'lucide-react';
 
 export default function Login() {
@@ -16,12 +17,21 @@ export default function Login() {
     e.preventDefault();
     try {
       const res = await axios.post('https://entebus-api.onrender.com/api/auth/login', { email, password });
+      
       localStorage.setItem('user', JSON.stringify(res.data.user));
       localStorage.setItem('token', res.data.token);
+      
+      // ✅ BEAUTIFUL SUCCESS POPUP
+      toast.success(`Welcome back, ${res.data.user.name}!`);
+
       navigate('/');
-      window.location.reload();
+      setTimeout(() => {
+        window.location.reload(); 
+      }, 1500); // Small delay so user sees the popup before reload
+      
     } catch (err) {
-      alert(err.response?.data?.message || 'Login Failed');
+      // ❌ BEAUTIFUL ERROR POPUP
+      toast.error(err.response?.data?.message || 'Login Failed. Check your password.');
     }
   };
 
@@ -75,11 +85,11 @@ export default function Login() {
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div className="bg-gray-50 p-3 rounded-xl border border-gray-200 flex items-center gap-3">
-            <User className="text-gray-400" size={20} />
+            <div className="text-gray-400"><User size={20} /></div>
             <input 
               type="email" 
               placeholder="Email Address" 
-              className="bg-transparent w-full outline-none font-medium"
+              className="bg-transparent w-full outline-none font-medium text-gray-900"
               value={email}
               onChange={e => setEmail(e.target.value)}
               required
@@ -87,11 +97,11 @@ export default function Login() {
           </div>
 
           <div className="bg-gray-50 p-3 rounded-xl border border-gray-200 flex items-center gap-3">
-            <Lock className="text-gray-400" size={20} />
+            <div className="text-gray-400"><Lock size={20} /></div>
             <input 
               type={showPassword ? "text" : "password"}
               placeholder="Password" 
-              className="bg-transparent w-full outline-none font-medium"
+              className="bg-transparent w-full outline-none font-medium text-gray-900"
               value={password}
               onChange={e => setPassword(e.target.value)}
               required
@@ -101,13 +111,13 @@ export default function Login() {
             </button>
           </div>
 
-          <button className="w-full bg-gray-900 text-white py-3 rounded-xl font-bold hover:bg-black transition">
+          <button className="w-full bg-gray-900 text-white py-3 rounded-xl font-bold hover:bg-black transition shadow-lg shadow-gray-200">
             Sign In
           </button>
         </form>
 
         <p className="text-center mt-6 text-gray-500">
-          Don't have an account? <Link to="/register" className="text-indigo-600 font-bold">Sign up</Link>
+          Don't have an account? <Link to="/register" className="text-indigo-600 font-bold hover:underline">Sign up</Link>
         </p>
       </div>
     </div>
