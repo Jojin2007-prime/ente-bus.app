@@ -16,11 +16,9 @@ const app = express();
 app.use(express.json());
 
 // --- ✅ UPDATED CORS CONFIGURATION ---
-// This setting allows requests from any source (*) and allows credentials.
-app.use(cors({
-  origin: "*",
-  credentials: true
-}));
+// "origin: *" and "credentials: true" usually causing errors together.
+// This standard configuration is safer for mobile apps and websites.
+app.use(cors());
 
 // --- DATABASE CONNECTION ---
 mongoose.connect(process.env.MONGO_URI)
