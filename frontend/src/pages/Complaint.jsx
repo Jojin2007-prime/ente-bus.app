@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
@@ -7,20 +7,32 @@ export default function Complaint() {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user'));
 
-  // ✅ UPDATED: Your actual Backend URL is now here
+  // ✅ YOUR RENDER BACKEND URL
   const API_URL = "https://entebus-api.onrender.com"; 
 
+  const [myTrips, setMyTrips] = useState([]); // Store user's past bookings
   const [formData, setFormData] = useState({
     name: user ? user.name : '',
     email: user ? user.email : '',
     category: 'Travel Experience',
+    tripDetails: '', // Selected trip info
     message: ''
   });
+
+  // ✅ NEW: Fetch User's Booking History on Load
+  useEffect(() => {
+    if (user && user.email) {
+      axios.get(`${API_URL}/api/bookings/user/${user.email}`)
+        .then(res => {
+          setMyTrips(res.data);
+        })
+        .catch(err => console.error("Could not fetch trips", err));
+    }
+  }, [user]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      // Sending the complaint to your Render backend
       await axios.post(`${API_URL}/api/complaints/add`, {
         ...formData,
         userId: user ? user._id : null
@@ -29,7 +41,7 @@ export default function Complaint() {
       navigate('/');
     } catch (err) {
       console.error("Submission Error:", err);
-      toast.error("Failed to submit complaint. Check internet connection.");
+      toast.error("Failed to submit. Check connection.");
     }
   };
 
@@ -48,6 +60,23 @@ export default function Complaint() {
               value={formData.name}
               onChange={(e) => setFormData({...formData, name: e.target.value})}
             />
+          </div>
+
+          {/* ✅ NEW: SELECT TRIP DROPDOWN */}
+          <div>
+            <label className="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Related Trip (Optional)</label>
+            <select 
+              className="w-full p-2 rounded-lg border dark:bg-slate-700 dark:border-slate-600 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none transition"
+              value={formData.tripDetails}
+              onChange={(e) => setFormData({...formData, tripDetails: e.target.value})}
+            >
+              <option value="">-- General / No Specific Trip --</option>
+              {myTrips.map((trip) => (
+                <option key={trip._id} value={`${trip.busId?.name || 'Bus'} - ${trip.travelDate}`}>
+                  {trip.travelDate} : {trip.busId?.name || 'Unknown Bus'}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>
