@@ -7,6 +7,9 @@ const jwt = require('jsonwebtoken');
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
 
+// --- ✅ NEW: IMPORT COMPLAINT ROUTES ---
+const complaintRoutes = require('./routes/complaintRoutes'); 
+
 dotenv.config();
 const app = express();
 
@@ -69,6 +72,9 @@ const bookingSchema = new mongoose.Schema({
 const Booking = mongoose.model('Booking', bookingSchema);
 
 // --- ROUTES ---
+
+// ✅ NEW: REGISTER COMPLAINT ROUTES
+app.use('/api/complaints', complaintRoutes); 
 
 // 1. Auth
 app.post('/api/auth/register', async (req, res) => {

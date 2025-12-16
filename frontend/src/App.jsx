@@ -1,7 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
-// 👇 Context & Chatbot Imports (NEW)
+// 👇 Context & Chatbot Imports
 import { ThemeProvider } from './context/ThemeContext';
 import EnteBusChatBot from './components/ChatBot';
 
@@ -28,6 +28,8 @@ import SwitchUserWarning from './pages/SwitchUserWarning';
 import BookingSuccess from './pages/BookingSuccess';
 import AdminTripHistory from './pages/AdminTripHistory';
 import Payment from './pages/Payment';
+import Complaint from './pages/Complaint';
+import AdminComplaints from './pages/AdminComplaints'; // <--- ✅ ADDED THIS IMPORT
 
 export default function App() {
   return (
@@ -44,6 +46,7 @@ export default function App() {
 
           {/* Page Routes */}
           <Routes>
+            {/* User Routes */}
             <Route path="/" element={<Landing />} />
             <Route path="/search" element={<SearchBuses />} />
             <Route path="/buses" element={<BusResults />} />
@@ -54,13 +57,17 @@ export default function App() {
             <Route path="/prices" element={<TicketPrices />} />
             <Route path="/schedule" element={<BusSchedule />} />
             <Route path="/history" element={<PaymentHistory />} />
-            <Route path="/admin-login" element={<AdminLogin />} />
-            <Route path="/admin" element={<Admin />} />
             <Route path="/verify" element={<TicketVerifier />} />
             <Route path="/switch-user" element={<SwitchUserWarning />} />
             <Route path="/booking-success/:id" element={<BookingSuccess />} />
-            <Route path="/admin/history" element={<AdminTripHistory />} />
             <Route path="/payment" element={<Payment />} />
+            <Route path="/complaint" element={<Complaint />} />
+
+            {/* Admin Routes */}
+            <Route path="/admin-login" element={<AdminLogin />} />
+            <Route path="/admin" element={<Admin />} />
+            <Route path="/admin/history" element={<AdminTripHistory />} />
+            <Route path="/admin/complaints" element={<AdminComplaints />} /> {/* <--- ✅ ADDED THIS ROUTE */}
           </Routes>
 
           {/* 3. Add the ChatBot here so it appears on all pages */}

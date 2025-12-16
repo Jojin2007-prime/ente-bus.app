@@ -3,14 +3,14 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Bus, User, LogOut, ScanLine, History, Calendar, Home, 
   LayoutDashboard, Search, IndianRupee, Info, ChevronRight, 
-  Sun, Moon // Added Sun and Moon icons
+  Sun, Moon, MessageSquareWarning // <--- 1. Added Icon Here
 } from 'lucide-react';
-import { useTheme } from '../context/ThemeContext'; // Import the theme hook
+import { useTheme } from '../context/ThemeContext';
 
 export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation(); 
-  const { theme, toggleTheme } = useTheme(); // Get theme logic
+  const { theme, toggleTheme } = useTheme();
 
   // Get user data
   const user = JSON.parse(localStorage.getItem('user'));
@@ -85,6 +85,15 @@ export default function Navbar() {
             <NavItem to="/schedule" icon={Calendar} label="Schedule" />
             <NavItem to="/prices" icon={IndianRupee} label="Prices" />
             <NavItem to="/about" icon={Info} label="About" />
+
+            {/* 2. ADDED SUPPORT LINK HERE */}
+            <Link 
+              to="/complaint" 
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 transition-all duration-200"
+            >
+              <MessageSquareWarning size={18} /> Support
+            </Link>
+
           </div>
 
           {/* 3. RIGHT SIDE: AUTH, SCANNER & TOGGLE */}
