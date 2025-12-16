@@ -77,8 +77,8 @@ export default function Navbar() {
             <NavItem to="/prices" icon={IndianRupee} label="Prices" />
             <NavItem to="/about" icon={Info} label="About" />
 
-            {/* 👇 HIDE THIS BUTTON IF ADMIN IS LOGGED IN */}
-            {!admin && (
+            {/* 👇 UPDATED CONDITION: Only show if User is Logged In AND Not Admin */}
+            {user && !admin && (
               <Link 
                 to="/complaint" 
                 className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 transition-all duration-200"
