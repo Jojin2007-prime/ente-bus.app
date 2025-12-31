@@ -4,11 +4,25 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/jpeg" href="/favicon.png" sizes="32x32" />
     <link rel="apple-touch-icon" href="/favicon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>EnteBus - Online Booking</title>
     
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    
+    <title>EnteBus - Online Booking</title>
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-    </head>
+    
+    <style>
+      /* Removes the gray tap highlight on Android/iOS */
+      * { -webkit-tap-highlight-color: transparent; }
+      
+      /* Smooth scrolling for mobile */
+      body {
+        margin: 0;
+        padding: 0;
+        background-color: #f9fafb;
+        -webkit-font-smoothing: antialiased;
+      }
+    </style>
+  </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>

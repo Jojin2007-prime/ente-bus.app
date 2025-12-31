@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
-  User, LogOut, ScanLine, History, Calendar, Home, 
+  LogOut, ScanLine, History, Calendar, Home, 
   LayoutDashboard, Search, IndianRupee, Info, ChevronRight, 
   Sun, Moon, MessageSquareWarning 
 } from 'lucide-react';
@@ -44,44 +44,29 @@ export default function Navbar() {
   return (
     <nav className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-md sticky top-0 z-50 border-b border-gray-100 dark:border-gray-800 transition-colors duration-300">
       <div className="container mx-auto px-4 py-3">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="flex items-center justify-between">
           
-          {/* LOGO SECTION */}
-          <div className="flex justify-between items-center">
-            <Link to="/" className="text-2xl font-black text-gray-900 dark:text-white flex items-center gap-2 tracking-tight">
-              
-              {/* ✅ REPLACED: Old Icon with New Custom BusLogo */}
-              <div className="p-1">
-                 <BusLogo />
-              </div>
-
-              <span className="text-indigo-600 dark:text-indigo-400">
-                    Ente<span className="text-yellow-400">Bus</span>
-              </span>
-            </Link>
-
-            {/* Mobile Actions */}
-            <div className="flex md:hidden items-center gap-2">
-               <button onClick={toggleTheme} className="p-2 bg-gray-100 dark:bg-gray-800 rounded-lg text-gray-500 dark:text-gray-400">
-                  {theme === 'dark' ? <Sun size={20} className="text-yellow-400"/> : <Moon size={20}/>}
-               </button>
-               {user || admin ? (
-                 <button onClick={handleLogout} className="p-2 bg-gray-100 dark:bg-gray-800 rounded-lg text-gray-500 dark:text-gray-400"><LogOut size={20}/></button>
-               ) : (
-                 <Link to="/login" className="bg-gray-900 dark:bg-gray-700 text-white px-4 py-2 rounded-lg text-xs font-bold">Login</Link>
-               )}
+          {/* --- LOGO SECTION --- */}
+          <Link to="/" className="text-2xl font-black text-gray-900 dark:text-white flex items-center gap-2 tracking-tight">
+            {/* Custom BusLogo scaled slightly for mobile */}
+            <div className="p-1 scale-90 md:scale-100">
+               <BusLogo />
             </div>
-          </div>
 
-          {/* MAIN NAVIGATION */}
-          <div className="flex flex-wrap justify-center gap-2">
+            <span className="text-indigo-600 dark:text-indigo-400">
+                Ente<span className="text-yellow-400">Bus</span>
+            </span>
+          </Link>
+
+          {/* --- DESKTOP NAVIGATION (Hidden on Mobile) --- */}
+          {/* We hide this on mobile because the BottomNav handles these actions */}
+          <div className="hidden md:flex flex-wrap justify-center gap-2">
             <NavItem to="/" icon={Home} label="Home" />
             
             {user && <NavItem to="/search" icon={Search} label="Search" />}
             <NavItem to="/schedule" icon={Calendar} label="Schedule" />
             <NavItem to="/prices" icon={IndianRupee} label="Prices" />
 
-            {/* ✅ SUPPORT BUTTON (Placed BEFORE About) */}
             {user && !admin && (
               <Link 
                 to="/complaint" 
@@ -91,50 +76,75 @@ export default function Navbar() {
               </Link>
             )}
 
-            {/* ABOUT BUTTON (Placed LAST) */}
             <NavItem to="/about" icon={Info} label="About" />
           </div>
 
-          {/* RIGHT SIDE ACTIONS */}
-          <div className="hidden md:flex items-center gap-3">
-            <button onClick={toggleTheme} className="p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-all mr-1">
+          {/* --- ACTIONS SECTION --- */}
+          <div className="flex items-center gap-2">
+            {/* Theme Toggle (Visible on both Mobile & Desktop) */}
+            <button 
+              onClick={toggleTheme} 
+              className="p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-all mr-1"
+            >
               {theme === 'dark' ? <Sun size={20} className="text-yellow-400"/> : <Moon size={20}/>}
             </button>
 
-            <Link to="/verify" className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm border transition-all mr-2 ${location.pathname === '/verify' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-indigo-50 dark:bg-gray-800 text-indigo-700 dark:text-indigo-400 border-indigo-100 dark:border-gray-700 hover:bg-indigo-100 dark:hover:bg-gray-700'}`}>
-              <ScanLine size={18} /> <span>Scan Ticket</span>
-            </Link>
-
-            <div className="w-px h-8 bg-gray-200 dark:bg-gray-700 mx-1"></div>
-
-            {admin ? (
-              <div className="flex items-center gap-2">
-                <Link to="/admin" className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-md transition-all">
-                  <LayoutDashboard size={16} /> Dashboard
+            {/* Desktop-Only Actions */}
+            <div className="hidden md:flex items-center gap-3">
+              {user && !admin && (
+                <Link to="/verify" className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm border transition-all mr-2 ${location.pathname === '/verify' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-indigo-50 dark:bg-gray-800 text-indigo-700 dark:text-indigo-400 border-indigo-100 dark:border-gray-700 hover:bg-indigo-100 dark:hover:bg-gray-700'}`}>
+                  <ScanLine size={18} /> <span>Scan Ticket</span>
                 </Link>
-                <button onClick={handleLogout} className="p-2.5 text-gray-400 dark:text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition">
-                  <LogOut size={20} />
-                </button>
-              </div>
-            ) : user ? (
-              <div className="flex items-center gap-3">
-                <div className="text-right">
-                  <p className="text-xs text-gray-400 font-bold uppercase">Welcome</p>
-                  <p className="text-sm font-bold text-gray-900 dark:text-white leading-none">{user.name.split(' ')[0]}</p>
+              )}
+
+              <div className="w-px h-8 bg-gray-200 dark:bg-gray-700 mx-1"></div>
+
+              {admin ? (
+                <div className="flex items-center gap-2">
+                  <Link to="/admin" className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-md transition-all">
+                    <LayoutDashboard size={16} /> Dashboard
+                  </Link>
+                  <button onClick={handleLogout} className="p-2.5 text-gray-400 dark:text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition">
+                    <LogOut size={20} />
+                  </button>
                 </div>
-                <Link to="/history" className="p-2.5 bg-gray-100 dark:bg-gray-800 hover:bg-indigo-50 dark:hover:bg-gray-700 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl transition">
-                  <History size={20} />
-                </Link>
-                <button onClick={handleLogout} className="p-2.5 bg-gray-100 dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 rounded-xl transition">
+              ) : user ? (
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <p className="text-xs text-gray-400 font-bold uppercase leading-none">Welcome</p>
+                    <p className="text-sm font-bold text-gray-900 dark:text-white leading-none">{user.name.split(' ')[0]}</p>
+                  </div>
+                  <Link to="/history" className="p-2.5 bg-gray-100 dark:bg-gray-800 hover:bg-indigo-50 dark:hover:bg-gray-700 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl transition">
+                    <History size={20} />
+                  </Link>
+                  <button onClick={handleLogout} className="p-2.5 bg-gray-100 dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 rounded-xl transition">
+                    <LogOut size={20} />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
+                  <Link to="/admin-login" className="px-4 py-2 rounded-lg text-xs font-bold text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition">Admin</Link>
+                  <Link to="/login" className="flex items-center gap-1 px-5 py-2 bg-white dark:bg-gray-700 rounded-lg text-sm font-bold text-gray-900 dark:text-white shadow-sm hover:shadow-md transition">Login <ChevronRight size={14} className="text-indigo-600 dark:text-indigo-400"/></Link>
+                </div>
+              )}
+            </div>
+
+            {/* Mobile Logout Button (Visible only on phones when logged in) */}
+            <div className="md:hidden flex items-center gap-2">
+              {(user || admin) ? (
+                <button 
+                  onClick={handleLogout} 
+                  className="p-2.5 bg-red-50 dark:bg-red-900/20 text-red-600 rounded-xl active:scale-95 transition-transform"
+                >
                   <LogOut size={20} />
                 </button>
-              </div>
-            ) : (
-              <div className="flex items-center bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
-                <Link to="/admin-login" className="px-4 py-2 rounded-lg text-xs font-bold text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition">Admin</Link>
-                <Link to="/login" className="flex items-center gap-1 px-5 py-2 bg-white dark:bg-gray-700 rounded-lg text-sm font-bold text-gray-900 dark:text-white shadow-sm hover:shadow-md transition">Login <ChevronRight size={14} className="text-indigo-600 dark:text-indigo-400"/></Link>
-              </div>
-            )}
+              ) : (
+                <Link to="/login" className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-xs font-bold active:scale-95 transition-transform">
+                  Login
+                </Link>
+              )}
+            </div>
+            
           </div>
         </div>
       </div>

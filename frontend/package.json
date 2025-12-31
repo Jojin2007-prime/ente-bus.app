@@ -11,11 +11,15 @@
   },
   "dependencies": {
     "@babel/runtime": "^7.28.4",
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/camera": "^8.0.0",
     "axios": "^1.13.2",
     "framer-motion": "^12.23.25",
     "html5-qrcode": "^2.3.8",
     "jspdf": "^3.0.4",
+    "jsqr": "^1.4.0",
     "lucide-react": "^0.556.0",
+    "qrcode": "^1.5.4",
     "react": "^19.2.0",
     "react-chatbotify": "^2.5.0",
     "react-dom": "^19.2.0",
@@ -24,6 +28,7 @@
     "react-toastify": "^11.0.5"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
     "@eslint/js": "^9.39.1",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",

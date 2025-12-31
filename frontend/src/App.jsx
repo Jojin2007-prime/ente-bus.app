@@ -1,9 +1,8 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
-// 👇 Context & Chatbot Imports
-import { ThemeProvider } from './context/ThemeContext';
-import EnteBusChatBot from './components/ChatBot';
+// 👇 RE-ADD THIS IMPORT (This fixes the white screen)
+import { ThemeProvider } from './context/ThemeContext'; 
 
 // 👇 Style & Toast Imports
 import { ToastContainer } from 'react-toastify';
@@ -11,6 +10,7 @@ import 'react-toastify/dist/ReactToastify.css';
 
 // 👇 Component & Page Imports
 import Navbar from './components/Navbar';
+import BottomNav from './components/BottomNav';
 import Landing from './pages/Landing';
 import SearchBuses from './pages/SearchBuses';
 import BusResults from './pages/BusResults';
@@ -29,24 +29,20 @@ import BookingSuccess from './pages/BookingSuccess';
 import AdminTripHistory from './pages/AdminTripHistory';
 import Payment from './pages/Payment';
 import Complaint from './pages/Complaint';
-import AdminComplaints from './pages/AdminComplaints'; // <--- ✅ ADDED THIS IMPORT
+import AdminComplaints from './pages/AdminComplaints';
 
 export default function App() {
   return (
-    // 1. Wrap the entire Router in the ThemeProvider
     <ThemeProvider>
       <BrowserRouter>
-        {/* 2. Update the main div with dark mode classes and transition */}
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 font-sans text-gray-900 dark:text-white transition-colors duration-300 relative">
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 font-sans text-gray-900 dark:text-white transition-colors duration-300 relative pb-20 md:pb-0">
           
           <Navbar />
           
-          {/* Toast Notifications */}
           <ToastContainer position="top-center" autoClose={3000} theme="colored" />
 
           {/* Page Routes */}
           <Routes>
-            {/* User Routes */}
             <Route path="/" element={<Landing />} />
             <Route path="/search" element={<SearchBuses />} />
             <Route path="/buses" element={<BusResults />} />
@@ -63,15 +59,15 @@ export default function App() {
             <Route path="/payment" element={<Payment />} />
             <Route path="/complaint" element={<Complaint />} />
 
-            {/* Admin Routes */}
             <Route path="/admin-login" element={<AdminLogin />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/admin/history" element={<AdminTripHistory />} />
-            <Route path="/admin/complaints" element={<AdminComplaints />} /> {/* <--- ✅ ADDED THIS ROUTE */}
+            <Route path="/admin/complaints" element={<AdminComplaints />} />
           </Routes>
 
-          {/* 3. Add the ChatBot here so it appears on all pages */}
-          <EnteBusChatBot />
+          {/* ChatBot section is now empty and removed successfully */}
+
+          <BottomNav />
 
         </div>
       </BrowserRouter>
