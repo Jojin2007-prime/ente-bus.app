@@ -125,11 +125,20 @@ const EnteBusChatBot = () => {
         }
     },
 
-    // --- Utilities ---
+    // --- Utilities & Navigation Fixes ---
     book_ticket: {
-      message: "Taking you to booking... 🚀",
+      message: (params) => {
+        // ✅ Check if already on Home Page
+        if (window.location.pathname === '/') {
+          return "You are already on the Booking Page! 🏡 Scroll down to search for buses.";
+        }
+        return "Taking you to the booking counter... 🚀";
+      },
+      transition: { duration: 1500 }, // Wait 1.5s so user sees the message
       path: (params) => {
-        navigate('/');
+        if (window.location.pathname !== '/') {
+            navigate('/');
+        }
         return "end_chat";
       }
     },
