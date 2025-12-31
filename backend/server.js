@@ -15,10 +15,13 @@ const app = express();
 
 app.use(express.json());
 
-// --- ✅ UPDATED CORS CONFIGURATION ---
-// "origin: *" and "credentials: true" usually causing errors together.
-// This standard configuration is safer for mobile apps and websites.
-app.use(cors());
+// --- ✅ IMPROVED CORS CONFIGURATION ---
+// Allows all origins for better compatibility with mobile/web clients on different hosting services
+app.use(cors({
+  origin: "*", 
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+}));
 
 // --- DATABASE CONNECTION ---
 mongoose.connect(process.env.MONGO_URI)
@@ -33,7 +36,6 @@ const razorpay = new Razorpay({
 
 // --- MODELS ---
 
-// 1. User
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
@@ -41,7 +43,6 @@ const userSchema = new mongoose.Schema({
 });
 const User = mongoose.model('User', userSchema);
 
-// 2. Bus
 const busSchema = new mongoose.Schema({
   name: String,
   registrationNumber: String,
@@ -54,7 +55,6 @@ const busSchema = new mongoose.Schema({
 });
 const Bus = mongoose.model('Bus', busSchema);
 
-// 3. Booking
 const bookingSchema = new mongoose.Schema({
   busId: { type: mongoose.Schema.Types.ObjectId, ref: 'Bus' },
   seatNumbers: [Number],
@@ -72,10 +72,9 @@ const Booking = mongoose.model('Booking', bookingSchema);
 
 // --- ROUTES ---
 
-// ✅ REGISTER COMPLAINT ROUTES
 app.use('/api/complaints', complaintRoutes); 
 
-// 1. Auth
+// 1. Auth Routes
 app.post('/api/auth/register', async (req, res) => {
   try {
     const userExists = await User.findOne({ email: req.body.email });
@@ -152,12 +151,13 @@ app.delete('/api/buses/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 3. Booking Logic
+// 3. Booking & Payment Logic
+
+// Step 1: Initialize local booking
 app.post('/api/bookings/init', async (req, res) => {
   try {
     const { busId, seatNumbers, customerEmail, customerName, customerPhone, amount, date } = req.body;
     
-    // Check if seats are already taken for this Date
     const existing = await Booking.find({
       busId,
       travelDate: date,
@@ -177,31 +177,51 @@ app.post('/api/bookings/init', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Step 2: Generate Razorpay Order
 app.post('/api/payment/order', async (req, res) => {
   try {
-    const options = { amount: req.body.amount * 100, currency: "INR", receipt: "rcp_" + Date.now() };
+    const options = { 
+      amount: Math.round(req.body.amount * 100), // Ensure paise is an integer
+      currency: "INR", 
+      receipt: "rcp_" + Date.now() 
+    };
     const order = await razorpay.orders.create(options);
     res.json(order);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Step 3: Verify Razorpay Signature
+
 app.post('/api/bookings/verify', async (req, res) => {
   const { razorpay_order_id, razorpay_payment_id, razorpay_signature, bookingId } = req.body;
   try {
+    const secret = process.env.RAZORPAY_KEY_SECRET || '10FbavAMxpgDor4tQk1ARVGc';
     const body = razorpay_order_id + "|" + razorpay_payment_id;
-    const expectedSignature = crypto.createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || '10FbavAMxpgDor4tQk1ARVGc').update(body.toString()).digest('hex');
+    
+    const expectedSignature = crypto
+      .createHmac('sha256', secret)
+      .update(body.toString())
+      .digest('hex');
 
     if (expectedSignature === razorpay_signature) {
       const booking = await Booking.findById(bookingId);
+      if (!booking) return res.status(404).json({ message: "Booking not found" });
+
       booking.paymentId = razorpay_payment_id;
       booking.orderId = razorpay_order_id;
       booking.status = 'Paid';
       await booking.save();
-      res.json({ message: 'Success', bookingId: booking._id });
+      
+      console.log(`✅ Payment Verified for Booking: ${bookingId}`);
+      res.json({ success: true, message: 'Success', bookingId: booking._id });
     } else {
-      res.status(400).json({ message: 'Invalid Signature' });
+      console.error("❌ Signature Mismatch");
+      res.status(400).json({ success: false, message: 'Invalid Signature' });
     }
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { 
+    console.error("❌ Verification Server Error:", err.message);
+    res.status(500).json({ error: err.message }); 
+  }
 });
 
 // 4. Occupied Seats (Date Specific)
@@ -214,48 +234,30 @@ app.get('/api/bookings/occupied', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 5. Admin Manifest (UPDATED: Optional Date Filter)
+// 5. Admin Routes
 app.get('/api/admin/manifest', async (req, res) => {
   const { busId, date } = req.query;
   try {
     const query = { busId, status: 'Paid' };
+    if (date) query.travelDate = date;
 
-    // If date is provided, filter by it. If not, return ALL trips.
-    if (date) {
-      query.travelDate = date;
-    }
-
-    // Sort by latest travel date first
     const bookings = await Booking.find(query).populate('busId').sort({ travelDate: -1 });
     res.json(bookings);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 6. Admin History (Aggregates Past Trips)
 app.get('/api/admin/history', async (req, res) => {
   try {
     const today = new Date().toISOString().split('T')[0];
 
     const history = await Booking.aggregate([
-      // 1. Filter: Only Paid bookings AND Dates in the past
-      { $match: {
-          status: 'Paid',
-          travelDate: { $lt: today }
-      }},
-      // 2. Group: Combine bookings by (Bus + Date) to make unique "Trips"
+      { $match: { status: 'Paid', travelDate: { $lt: today } }},
       { $group: {
           _id: { busId: "$busId", date: "$travelDate" },
           totalRevenue: { $sum: "$amount" },
           totalPassengers: { $sum: { $size: "$seatNumbers" } }
       }},
-      // 3. Join: Get Bus Details
-      { $lookup: {
-          from: "buses",
-          localField: "_id.busId",
-          foreignField: "_id",
-          as: "busDetails"
-      }},
-      // 4. Formatting
+      { $lookup: { from: "buses", localField: "_id.busId", foreignField: "_id", as: "busDetails" }},
       { $unwind: "$busDetails" },
       { $sort: { "_id.date": -1 } }
     ]);
@@ -272,7 +274,6 @@ app.get('/api/admin/history', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Admin All Bookings (Raw List)
 app.get('/api/admin/bookings', async (req, res) => {
   try {
     const bookings = await Booking.find().populate('busId').sort({ _id: -1 });
@@ -280,7 +281,7 @@ app.get('/api/admin/bookings', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// Ticket Verification
+// 6. Ticket & User History
 app.get('/api/verify/:id', async (req, res) => {
   try {
     const booking = await Booking.findById(req.params.id).populate('busId');
@@ -289,7 +290,6 @@ app.get('/api/verify/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ message: 'Invalid Ticket' }); }
 });
 
-// User History
 app.get('/api/bookings/user/:email', async (req, res) => {
   try {
     const bookings = await Booking.find({ customerEmail: req.params.email }).populate('busId').sort({_id:-1});
