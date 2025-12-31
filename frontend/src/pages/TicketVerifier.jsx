@@ -7,7 +7,7 @@ import {
   X, AlertTriangle, Download, Calendar, MapPin, StopCircle, Camera, ChevronDown
 } from 'lucide-react';
 
-export default function TicketVerifier({ isAdmin = false }) {
+export default function TicketVerifier() {
     const [ticketData, setTicketData] = useState(null);
     const [ticketStatus, setTicketStatus] = useState(null);
     const [error, setError] = useState('');
@@ -24,22 +24,29 @@ export default function TicketVerifier({ isAdmin = false }) {
     const canvasRef = useRef(null);
     const requestRef = useRef(null);
 
-    // --- 1. FETCH AVAILABLE CAMERAS ---
+    // --- 1. FETCH ALL AVAILABLE CAMERAS ---
     useEffect(() => {
         const getCameras = async () => {
             try {
+                // Request temporary permission to get device labels
+                await navigator.mediaDevices.getUserMedia({ video: true });
                 const devices = await navigator.mediaDevices.enumerateDevices();
                 const videoDevices = devices.filter(device => device.kind === 'videoinput');
                 setCameras(videoDevices);
+                
+                // Default to the first camera found
                 if (videoDevices.length > 0 && !selectedCamera) {
                     setSelectedCamera(videoDevices[0].deviceId);
                 }
-            } catch (err) { console.error("Error listing cameras", err); }
+            } catch (err) { 
+                console.error("Error listing cameras", err); 
+                setError("Could not list cameras. Please allow permissions.");
+            }
         };
         getCameras();
     }, []);
 
-    // --- 2. START CAMERA ---
+    // --- 2. START THE CHOSEN CAMERA ---
     const startCamera = async () => {
         setIsCameraActive(true);
         setError('');
@@ -47,7 +54,7 @@ export default function TicketVerifier({ isAdmin = false }) {
         try {
             const constraints = {
                 video: { 
-                    deviceId: selectedCamera ? { exact: selectedCamera } : undefined,
+                    deviceId: { exact: selectedCamera },
                     width: { ideal: 1920 },
                     height: { ideal: 1080 }
                 }
@@ -58,7 +65,7 @@ export default function TicketVerifier({ isAdmin = false }) {
                 requestRef.current = requestAnimationFrame(scanFrame);
             }
         } catch (err) {
-            setError("Camera access denied. Please check permissions.");
+            setError("Selected camera could not start.");
             setIsCameraActive(false);
         }
     };
@@ -71,7 +78,7 @@ export default function TicketVerifier({ isAdmin = false }) {
         if (requestRef.current) cancelAnimationFrame(requestRef.current);
     };
 
-    // --- 3. THE ACCURATE SCAN ENGINE ---
+    // --- 3. LIVE SCAN ENGINE ---
     const scanFrame = () => {
         if (videoRef.current && videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
             const canvas = canvasRef.current;
@@ -85,8 +92,13 @@ export default function TicketVerifier({ isAdmin = false }) {
             const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "attemptBoth" });
 
             if (code) {
-                handleScannedData(code.data);
-                return; 
+                // Extract 24-character MongoDB ID
+                const idMatch = code.data.match(/[a-f\d]{24}/i);
+                if (idMatch) {
+                    stopCamera();
+                    verifyTicket(idMatch[0]);
+                    return;
+                }
             }
         }
         if (isCameraActive) requestRef.current = requestAnimationFrame(scanFrame);
@@ -107,11 +119,13 @@ export default function TicketVerifier({ isAdmin = false }) {
                 canvas.width = img.width; canvas.height = img.height;
                 ctx.imageSmoothingEnabled = false;
 
+                // TRY 1: Enhance Contrast
                 ctx.filter = 'contrast(2.5) grayscale(1)';
                 ctx.drawImage(img, 0, 0);
                 let data = ctx.getImageData(0, 0, canvas.width, canvas.height);
                 let code = jsQR(data.data, data.width, data.height, { inversionAttempts: "attemptBoth" });
 
+                // TRY 2: Hard Binarization (Pure Black/White)
                 if (!code) {
                     const pixels = data.data;
                     for (let i = 0; i < pixels.length; i += 4) {
@@ -122,8 +136,13 @@ export default function TicketVerifier({ isAdmin = false }) {
                     code = jsQR(pixels, data.width, data.height, { inversionAttempts: "attemptBoth" });
                 }
 
-                if (code) handleScannedData(code.data);
-                else setError("Could not read QR. Ensure the image is sharp.");
+                if (code) {
+                    const idMatch = code.data.match(/[a-f\d]{24}/i);
+                    if (idMatch) verifyTicket(idMatch[0]);
+                    else setError("Invalid QR data.");
+                } else {
+                    setError("Could not read QR. Please use a clearer image.");
+                }
                 setLoading(false);
             };
             img.src = event.target.result;
@@ -131,43 +150,13 @@ export default function TicketVerifier({ isAdmin = false }) {
         reader.readAsDataURL(file);
     };
 
-    const handleScannedData = (rawData) => {
-        const idMatch = rawData.match(/[a-f\d]{24}/i);
-        if (idMatch) {
-            stopCamera();
-            verifyTicket(idMatch[0]);
-        } else { setError("Invalid QR format."); }
-    };
-
-    // --- ✅ UPDATED VERIFICATION WITH OWNERSHIP CHECK ---
+    // --- 5. GLOBAL VERIFICATION (No email check) ---
     const verifyTicket = async (id) => {
-        setLoading(true); 
-        setTicketData(null); 
-        setError(''); 
-        setTicketStatus(null);
-        
+        setLoading(true); setTicketData(null); setError(''); setTicketStatus(null);
         try {
-            // 1. Get the currently logged-in user from localStorage
-            const storedUser = JSON.parse(localStorage.getItem('user')); 
-
-            if (!storedUser && !isAdmin) {
-                setError("❌ Please log in to verify your ticket.");
-                setLoading(false);
-                return;
-            }
-
-            // 2. Fetch the ticket data from Render API
             const res = await axios.get(`https://entebus-api.onrender.com/api/verify/${id}`);
             const ticket = res.data;
 
-            // 3. 🔐 OWNERSHIP SECURITY CHECK
-            if (!isAdmin && ticket.customerEmail !== storedUser.email) {
-                setError("❌ Access Denied: This ticket belongs to another passenger.");
-                setLoading(false);
-                return;
-            }
-
-            // 4. DATE VALIDITY CHECK
             const travelDate = new Date(ticket.travelDate);
             const today = new Date();
             today.setHours(0, 0, 0, 0);
@@ -175,45 +164,65 @@ export default function TicketVerifier({ isAdmin = false }) {
 
             setTicketStatus(travelDate < today ? 'expired' : 'valid');
             setTicketData(ticket);
-
         } catch (err) { 
-            console.error("Verification error:", err);
-            setError('❌ Invalid Ticket ID or Ticket Not Found'); 
+            setError("❌ Ticket not found in database."); 
         } finally { 
             setLoading(false); 
         }
     };
 
+    const downloadTicket = async (id) => {
+        setDownloading(true);
+        try {
+            const res = await axios.get(`https://entebus-api.onrender.com/api/tickets/download/${id}`, { responseType: 'blob' });
+            const url = window.URL.createObjectURL(new Blob([res.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `EnteBus_Ticket.jpg`);
+            document.body.appendChild(link);
+            link.click();
+            setDownloading(false);
+        } catch (e) { setDownloading(false); }
+    };
+
     return (
         <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center p-6 font-sans">
-            <h2 className="text-3xl font-black mb-8 flex items-center gap-3">
-                <QrCode className="text-indigo-400" /> {isAdmin ? "Admin Scanner" : "Ticket Verifier"}
-            </h2>
+            <header className="text-center mb-8">
+                <QrCode className="text-indigo-500 mx-auto mb-4" size={50} />
+                <h2 className="text-3xl font-black">Ente Bus Verifier</h2>
+                <p className="text-gray-500 text-sm">Select any camera lens to begin</p>
+            </header>
 
             {isCameraActive && (
                 <div className="fixed inset-0 bg-black z-50 flex flex-col items-center justify-center p-4">
                     <div className="relative w-full max-w-md aspect-square rounded-[3rem] border-4 border-indigo-500 overflow-hidden shadow-2xl">
                         <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
                         <canvas ref={canvasRef} className="hidden" />
-                        <div className="absolute inset-0 border-[60px] border-black/40"></div>
-                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 border-2 border-indigo-400 rounded-3xl animate-pulse"></div>
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 border-2 border-white/30 rounded-3xl animate-pulse"></div>
                     </div>
-                    <button onClick={stopCamera} className="mt-10 bg-red-600 px-12 py-4 rounded-2xl font-black shadow-lg shadow-red-900/40">Close</button>
+                    <button onClick={stopCamera} className="mt-10 bg-red-600 px-12 py-4 rounded-2xl font-black shadow-lg">Close Scanner</button>
                 </div>
             )}
 
             {!ticketData && !loading && !error && !isCameraActive && (
                 <div className="w-full max-w-sm space-y-6">
-                    <div className="relative group">
-                        <label className="text-xs font-black text-gray-500 uppercase ml-2 mb-2 block">Select Camera Source</label>
-                        <select 
-                            value={selectedCamera} 
-                            onChange={(e) => setSelectedCamera(e.target.value)}
-                            className="w-full bg-gray-800 border-2 border-gray-700 p-4 rounded-2xl appearance-none font-bold focus:border-indigo-500 transition-all outline-none"
-                        >
-                            {cameras.map(cam => <option key={cam.deviceId} value={cam.deviceId}>{cam.label || `Camera ${cam.deviceId.slice(0,5)}`}</option>)}
-                        </select>
-                        <ChevronDown className="absolute right-4 bottom-5 text-gray-500 pointer-events-none" size={20} />
+                    {/* --- CAMERA SELECTOR --- */}
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase text-gray-500 tracking-widest ml-1">Choose Camera Source</label>
+                        <div className="relative">
+                            <select 
+                                value={selectedCamera} 
+                                onChange={(e) => setSelectedCamera(e.target.value)}
+                                className="w-full bg-gray-800 border-2 border-gray-700 p-4 rounded-2xl appearance-none font-bold outline-none focus:border-indigo-500 transition-all"
+                            >
+                                {cameras.map(cam => (
+                                    <option key={cam.deviceId} value={cam.deviceId}>
+                                        {cam.label || `Camera ${cam.deviceId.slice(0, 5)}`}
+                                    </option>
+                                ))}
+                            </select>
+                            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+                        </div>
                     </div>
 
                     <button onClick={startCamera} className="w-full bg-indigo-600 hover:bg-indigo-500 py-6 rounded-3xl font-black text-xl flex items-center justify-center gap-4 transition-all shadow-xl shadow-indigo-900/40">
@@ -250,7 +259,7 @@ export default function TicketVerifier({ isAdmin = false }) {
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="bg-gray-50 p-4 rounded-3xl border">
-                                <p className="text-[10px] uppercase text-gray-400 font-black mb-1">Travel Date</p>
+                                <p className="text-[10px] uppercase text-gray-400 font-black mb-1">Date</p>
                                 <p className="font-black text-indigo-600">{ticketData.travelDate}</p>
                             </div>
                             <div className="bg-gray-50 p-4 rounded-3xl border">
@@ -258,7 +267,12 @@ export default function TicketVerifier({ isAdmin = false }) {
                                 <p className="font-black text-indigo-600">{ticketData.seatNumbers?.join(', ')}</p>
                             </div>
                         </div>
-                        <button onClick={() => setTicketData(null)} className="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black text-lg shadow-xl shadow-indigo-100 transition-all active:scale-95">Verify Another</button>
+                        <div className="pt-4 space-y-3">
+                            <button onClick={() => downloadTicket(ticketData._id)} disabled={downloading} className="w-full bg-indigo-600 text-white py-5 rounded-2xl font-black text-lg flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-indigo-100">
+                                {downloading ? <Loader className="animate-spin" /> : <Download />} Download Ticket
+                            </button>
+                            <button onClick={() => setTicketData(null)} className="w-full bg-gray-100 text-gray-500 py-4 rounded-2xl font-bold">Close Result</button>
+                        </div>
                     </div>
                 </div>
             )}
@@ -267,11 +281,11 @@ export default function TicketVerifier({ isAdmin = false }) {
                 <div className="bg-red-500/10 border border-red-500/30 p-8 rounded-[2rem] text-center max-w-sm">
                     <XCircle size={64} className="mx-auto text-red-500 mb-6" />
                     <p className="text-red-400 font-bold mb-8 leading-relaxed">{error}</p>
-                    <button onClick={() => {setError(''); setTicketData(null);}} className="bg-red-600 text-white px-10 py-3 rounded-xl font-black">Try Again</button>
+                    <button onClick={() => {setError(''); setTicketData(null);}} className="bg-red-600 text-white px-10 py-3 rounded-xl font-black shadow-lg shadow-red-900/40">Try Again</button>
                 </div>
             )}
 
-            {loading && <div className="text-center"><Loader className="animate-spin text-indigo-500 mx-auto" size={60} /><p className="mt-4 font-black uppercase text-xs tracking-widest">Verifying Database...</p></div>}
+            {loading && <div className="text-center"><Loader className="animate-spin text-indigo-500 mx-auto" size={60} /><p className="mt-4 font-black uppercase text-[10px] tracking-widest text-gray-500">Querying Database...</p></div>}
         </div>
     );
 }
