@@ -108,7 +108,7 @@ export default function Register() {
             {/* Submit Button */}
             <button 
               disabled={loading}
-              className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black text-lg uppercase tracking-widest hover:bg-indigo-700 transition shadow-xl shadow-indigo-200 dark:shadow-none active:scale-95 flex items-center justify-center gap-2"
+              className="w-full bg-gray-900 dark:bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-black dark:hover:bg-indigo-500 transition shadow-lg shadow-gray-200 dark:shadow-none"
             >
               {loading ? (
                 <div className="w-6 h-6 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
