@@ -20,7 +20,7 @@ export default function Admin() {
 
   // --- QR Scanner Specific States ---
   const [ticketData, setTicketData] = useState(null);
-  const [ticketStatus, setTicketStatus] = useState(null);
+  const [ticketStatus, setTicketStatus] = useState(null); // 'valid', 'future', 'expired'
   const [scanError, setScanError] = useState('');
   const [scanLoading, setScanLoading] = useState(false);
   const [confirmLoading, setConfirmLoading] = useState(false);
@@ -31,12 +31,10 @@ export default function Admin() {
   const html5QrCodeRef = useRef(null);
   const fileInputRef = useRef(null);
 
-  // --- Manifest States ---
+  // --- Manifest/Form States ---
   const [manifestBusId, setManifestBusId] = useState('');
   const [manifestDate, setManifestDate] = useState('');
   const [manifestData, setManifestData] = useState([]);
-
-  // --- Bus Form States ---
   const [formData, setFormData] = useState({ 
     name: '', registrationNumber: '', from: '', to: '', 
     departureTime: '', price: '', driverName: '', driverContact: '' 
@@ -79,21 +77,21 @@ export default function Admin() {
     try {
       const res = await axios.get(`${API_URL}/api/admin/bookings`);
       setBookings(res.data);
-    } catch (err) { console.error("Booking Fetch Error", err); }
+    } catch (err) { console.error(err); }
   };
 
   const fetchBuses = async () => {
     try {
       const res = await axios.get(`${API_URL}/api/buses`);
       setBuses(res.data);
-    } catch (err) { console.error("Bus Fetch Error", err); }
+    } catch (err) { console.error(err); }
   };
 
   const fetchComplaints = async () => {
     try {
       const res = await axios.get(`${API_URL}/api/complaints/all`);
       setComplaints(res.data);
-    } catch (err) { console.error("Complaints Fetch Error", err); }
+    } catch (err) { console.error(err); }
   };
 
   // --- 3. SCANNER HARDWARE & MEDIA LOGIC ---
@@ -164,23 +162,36 @@ export default function Admin() {
     }
   };
 
+  // --- ✅ 4. TODAY-ONLY VERIFICATION LOGIC ---
   const verifyScannedTicket = async (id) => {
     setScanLoading(true); setScanError('');
     try {
       const res = await axios.get(`${API_URL}/api/verify/${id}`);
       const ticket = res.data;
+      
+      // Date Comparison Logic
       const travelDate = new Date(ticket.travelDate);
       const today = new Date();
-      today.setHours(0,0,0,0); travelDate.setHours(0,0,0,0);
-      setTicketStatus(travelDate < today ? 'expired' : 'valid');
+      
+      // Reset hours to compare only Dates
+      travelDate.setHours(0, 0, 0, 0);
+      today.setHours(0, 0, 0, 0);
+
+      if (travelDate.getTime() < today.getTime()) {
+        setTicketStatus('expired'); // For yesterday or before
+      } else if (travelDate.getTime() > today.getTime()) {
+        setTicketStatus('future');  // For tomorrow or later
+      } else {
+        setTicketStatus('valid');   // Exactly for Today
+      }
+
       setTicketData(ticket);
     } catch (err) { setScanError("❌ Record not found in database."); }
     finally { setScanLoading(false); }
   };
 
-  // --- ✅ 4. BOARDING CONFIRMATION ---
   const confirmBoarding = async () => {
-    if (!ticketData) return;
+    if (!ticketData || ticketStatus !== 'valid') return;
     setConfirmLoading(true);
     try {
       await axios.put(`${API_URL}/api/bookings/board/${ticketData._id}`);
@@ -191,7 +202,7 @@ export default function Admin() {
     finally { setConfirmLoading(false); }
   };
 
-  // --- 5. ACTION HANDLERS ---
+  // --- 5. ACTION HANDLERS (BUS CRUD & COMPLAINTS) ---
   const handleBusSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -263,7 +274,7 @@ export default function Admin() {
     <div className="p-6 md:p-10 bg-gray-50 dark:bg-slate-900 min-h-screen transition-colors duration-300">
       <div id="file-worker-admin" style={{ display: 'none' }}></div>
       
-      {/* --- NAVIGATION HEADER --- */}
+      {/* --- HEADER --- */}
       <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
         <h1 className="text-3xl font-black dark:text-white italic uppercase flex items-center gap-2">
           <Shield className="text-red-600" size={32}/> EnteBus Admin
@@ -279,13 +290,12 @@ export default function Admin() {
              Complaints {complaints.filter(c => c.status === 'Pending').length > 0 && <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full ml-1">{complaints.filter(c => c.status === 'Pending').length}</span>}
            </button>
         </div>
-        <button onClick={handleLogout} className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-5 py-2 rounded-xl font-bold border border-red-100 dark:border-red-800">Logout</button>
+        <button onClick={handleLogout} className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-5 py-2 rounded-xl font-bold border border-red-100 dark:border-red-800 transition-all active:scale-95">Logout</button>
       </div>
 
-      {/* --- TAB 1: DASHBOARD --- */}
+      {/* --- DASHBOARD TAB --- */}
       {activeTab === 'dashboard' && (
         <div className="animate-in fade-in duration-500">
-           {/* Stats Section */}
            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-8">
              <Link to="/admin/history" className="p-6 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-sm hover:shadow-md transition flex flex-col items-center justify-center gap-3 text-center group no-underline">
                 <div className="bg-orange-100 dark:bg-orange-900/30 p-3 rounded-full text-orange-600 group-hover:bg-orange-600 group-hover:text-white transition"><History size={24}/></div>
@@ -293,7 +303,6 @@ export default function Admin() {
              </Link>
            </div>
 
-           {/* Add/Edit Bus Form */}
            <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-700 mb-10">
             <h3 className="text-xl font-bold mb-6 dark:text-white flex items-center gap-2">
               {isEditing ? <Edit className="text-indigo-500" /> : <Plus className="text-green-500" />}
@@ -319,7 +328,6 @@ export default function Admin() {
             </form>
           </div>
 
-          {/* Fleet Management Table */}
           <div className="bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 p-8 shadow-sm">
               <h3 className="text-xl font-bold mb-6 dark:text-white">Active Fleet Management</h3>
               <div className="overflow-x-auto">
@@ -333,7 +341,7 @@ export default function Admin() {
                         <td className="p-4 font-bold dark:text-white">{b.name} <br/><span className="text-[10px] font-mono opacity-50">{b.registrationNumber}</span></td>
                         <td className="p-4 text-sm dark:text-slate-300">{b.from} → {b.to}</td>
                         <td className="p-4 font-bold text-indigo-600 dark:text-indigo-400">{formatTime(b.departureTime)}</td>
-                        <td className="p-4">
+                        <td className="p-4 text-center">
                            <div className="flex justify-center gap-2">
                              <button onClick={() => handleEditClick(b)} className="p-2 text-blue-600 bg-blue-50 dark:bg-blue-900/20 rounded-lg hover:bg-blue-100"><Edit size={16}/></button>
                              <button onClick={() => handleDeleteBus(b._id)} className="p-2 text-red-600 bg-red-50 dark:bg-red-900/20 rounded-lg hover:bg-red-100"><Trash2 size={16}/></button>
@@ -365,7 +373,7 @@ export default function Admin() {
             <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-slate-700">
               <table className="w-full text-left bg-white dark:bg-slate-800">
                 <thead className="bg-gray-800 text-white">
-                  <tr><th className="p-4 uppercase text-[10px] tracking-widest">Seat</th><th className="p-4 uppercase text-[10px] tracking-widest">Passenger</th><th className="p-4 uppercase text-[10px] tracking-widest">Contact Info</th><th className="p-4 uppercase text-[10px] tracking-widest">Boarding Status</th></tr>
+                  <tr><th className="p-4 uppercase text-[10px] tracking-widest">Seat</th><th className="p-4 uppercase text-[10px] tracking-widest">Passenger</th><th className="p-4 uppercase text-[10px] tracking-widest">Contact Info</th><th className="p-4 uppercase text-[10px] tracking-widest">Status</th></tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
                   {processedManifest.map((row, idx) => (
@@ -373,22 +381,22 @@ export default function Admin() {
                       <td className="p-4 font-black text-gray-700 dark:text-gray-300">{row.seat}</td>
                       <td className="p-4 font-bold dark:text-white">{row.name}</td>
                       <td className="p-4 text-xs font-mono dark:text-slate-400">{row.phone} <br/> {row.email}</td>
-                      <td className="p-4"><span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${row.status==='Boarded' ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-blue-100 text-blue-700 border border-blue-200'}`}>{row.status}</span></td>
+                      <td className="p-4"><span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${row.status==='Boarded' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>{row.status}</span></td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-              <div className="p-4 bg-gray-50 dark:bg-slate-900 text-right"><button onClick={() => window.print()} className="text-indigo-600 dark:text-indigo-400 font-black text-sm flex items-center gap-2 justify-end ml-auto hover:underline"><Printer size={16}/> Print Manifest for Conductor</button></div>
+              <div className="p-4 bg-gray-50 dark:bg-slate-900 text-right"><button onClick={() => window.print()} className="text-indigo-600 dark:text-indigo-400 font-black text-sm flex items-center gap-2 justify-end ml-auto hover:underline"><Printer size={16}/> Print Manifest</button></div>
             </div>
           ) : (
              <div className="flex flex-col items-center justify-center py-20 text-gray-400 bg-white dark:bg-slate-800 rounded-2xl border-2 border-dashed border-gray-200">
-               <Users size={48} className="opacity-10 mb-4"/><p className="font-bold text-xs uppercase tracking-widest">No passenger entries found for this trip.</p>
+               <Users size={48} className="opacity-10 mb-4"/><p className="font-bold text-xs uppercase tracking-widest">No passengers found.</p>
              </div>
           )}
         </div>
       )}
 
-      {/* --- TAB 3: SCANNER --- */}
+      {/* --- TAB 3: SCANNER (WITH TODAY-ONLY LOGIC) --- */}
       {activeTab === 'scanner' && (
         <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl border border-gray-200 dark:border-slate-700 animate-in slide-in-from-bottom-4 duration-500">
           <div className="max-w-xl mx-auto space-y-6">
@@ -397,7 +405,7 @@ export default function Admin() {
                 <div>
                   <label className="text-[10px] font-black uppercase text-gray-400 block mb-2 tracking-widest">Conductor Hardware Lenses</label>
                   <select value={selectedCamera} onChange={(e) => setSelectedCamera(e.target.value)} className="w-full bg-white dark:bg-slate-800 border-2 border-gray-200 dark:border-slate-700 p-4 rounded-xl font-bold focus:ring-2 ring-indigo-500 transition-all outline-none">
-                    {cameras.map(cam => <option key={cam.id} value={cam.id}>{cam.label || `Lens Hardware ${cam.id.slice(0,5)}`}</option>)}
+                    {cameras.map(cam => <option key={cam.id} value={cam.id}>{cam.label || `Hardware ${cam.id.slice(0,5)}`}</option>)}
                   </select>
                 </div>
                 <button onClick={startScanner} className="w-full bg-indigo-600 text-white py-6 rounded-2xl font-black text-xl flex items-center justify-center gap-4 shadow-xl active:scale-95 transition-all shadow-indigo-900/40">
@@ -427,24 +435,47 @@ export default function Admin() {
 
             {ticketData && (
               <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] overflow-hidden shadow-2xl animate-in zoom-in duration-500 border border-gray-200 dark:border-slate-700">
-                <div className={`${ticketStatus === 'valid' ? 'bg-green-600' : 'bg-orange-500'} p-7 text-white text-center font-black text-xl tracking-wide flex items-center justify-center gap-3 shadow-lg`}>
-                  {ticketStatus === 'valid' ? <CheckCircle size={28} /> : <AlertTriangle size={28} />}
-                  {ticketStatus === 'valid' ? 'BOARDING PERMITTED' : 'EXPIRED / INVALID'}
+                
+                {/* --- HEADER WITH TODAY-ONLY STATUS --- */}
+                <div className={`${
+                    ticketStatus === 'valid' ? 'bg-green-600' : 
+                    ticketStatus === 'future' ? 'bg-blue-600' : 'bg-orange-500'
+                } p-7 text-white text-center font-black text-xl tracking-wide flex items-center justify-center gap-3 shadow-lg`}>
+                  {ticketStatus === 'valid' ? <CheckCircle size={28} /> : 
+                   ticketStatus === 'future' ? <Calendar size={28} /> : <AlertTriangle size={28} />}
+                  
+                  {ticketStatus === 'valid' ? 'ENTRY PERMITTED' : 
+                   ticketStatus === 'future' ? 'FUTURE TICKET' : 'EXPIRED TICKET'}
                 </div>
+
                 <div className="p-8 space-y-6">
                   <div className="flex gap-5 border-b dark:border-slate-700 pb-5"><div className="bg-indigo-50 dark:bg-indigo-900/30 p-4 rounded-2xl text-indigo-600"><User size={28} /></div><div><p className="text-[10px] text-gray-400 font-black uppercase mb-1 tracking-widest">Passenger</p><p className="font-bold text-2xl text-gray-800 dark:text-white leading-tight">{ticketData.customerName || "Verified Guest"}</p></div></div>
-                  <div className="flex gap-5 border-b dark:border-slate-700 pb-5"><div className="bg-orange-50 dark:bg-orange-900/30 p-4 rounded-2xl text-orange-600"><Bus size={28} /></div><div className="flex-1"><p className="text-[10px] text-gray-400 uppercase mb-1 font-black tracking-widest">Route Identity</p><p className="font-bold text-xl text-gray-900 dark:text-white leading-tight">{ticketData.busId?.name || "EnteBus Standard"}</p><div className="text-indigo-600 dark:text-indigo-400 font-black text-sm flex items-center gap-2 mt-1"><span>{ticketData.busId?.from}</span> <ArrowRight size={14}/> <span>{ticketData.busId?.to}</span></div></div></div>
+                  <div className="flex gap-5 border-b dark:border-slate-700 pb-5"><div className="bg-orange-50 dark:bg-orange-900/30 p-4 rounded-2xl text-orange-600"><Bus size={28} /></div><div className="flex-1"><p className="text-[10px] text-gray-400 uppercase mb-1 font-black tracking-widest">Route Details</p><p className="font-bold text-xl text-gray-900 dark:text-white leading-tight">{ticketData.busId?.name}</p><div className="text-indigo-600 dark:text-indigo-400 font-black text-sm flex items-center gap-2 mt-1"><span>{ticketData.busId?.from}</span> <ArrowRight size={14}/> <span>{ticketData.busId?.to}</span></div></div></div>
+                  
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-gray-50 dark:bg-slate-900 p-5 rounded-3xl border dark:border-slate-700"><p className="text-[10px] text-gray-400 font-black uppercase mb-1 tracking-widest">Date</p><p className="font-black text-lg dark:text-white">{ticketData.travelDate}</p></div>
+                    <div className="bg-gray-50 dark:bg-slate-900 p-5 rounded-3xl border dark:border-slate-700">
+                        <p className="text-[10px] text-gray-400 font-black uppercase mb-1 tracking-widest">Travel Date</p>
+                        <p className={`font-black text-lg ${ticketStatus==='valid' ? 'text-green-600' : 'text-red-500'}`}>{ticketData.travelDate}</p>
+                    </div>
                     <div className="bg-gray-50 dark:bg-slate-900 p-5 rounded-3xl border dark:border-slate-700"><p className="text-[10px] text-gray-400 font-black uppercase mb-1 tracking-widest">Seats</p><p className="font-black text-lg dark:text-white tracking-widest">{ticketData.seatNumbers?.join(', ')}</p></div>
                   </div>
 
-                  {/* ✅ BOARDING CONFIRM BUTTON */}
+                  {/* ✅ CONFIRM BOARDING BUTTON (ENABLED FOR TODAY ONLY) */}
                   {ticketData.status === 'Boarded' ? (
-                     <div className="bg-green-100 text-green-700 p-5 rounded-2xl text-center font-black border-2 border-green-200 flex items-center justify-center gap-2 uppercase tracking-tighter shadow-inner"><UserCheck /> Passenger On Board</div>
+                     <div className="bg-green-100 text-green-700 p-5 rounded-2xl text-center font-black border-2 border-green-200 flex items-center justify-center gap-2 uppercase tracking-tighter shadow-inner"><UserCheck /> Already Boarded</div>
                   ) : (
-                     <button onClick={confirmBoarding} disabled={confirmLoading || ticketStatus === 'expired'} className={`w-full py-5 rounded-2xl font-black text-xl flex items-center justify-center gap-3 shadow-xl active:scale-95 transition-all ${ticketStatus==='expired' ? 'bg-gray-300 cursor-not-allowed opacity-50' : 'bg-green-600 text-white hover:bg-green-700 shadow-green-900/20'}`}>
-                        {confirmLoading ? <Loader className="animate-spin" /> : <UserCheck />} {confirmLoading ? "UPDATING..." : "Confirm Boarding"}
+                     <button 
+                        onClick={confirmBoarding} 
+                        disabled={confirmLoading || ticketStatus !== 'valid'} 
+                        className={`w-full py-5 rounded-2xl font-black text-xl flex items-center justify-center gap-3 shadow-xl active:scale-95 transition-all ${
+                            ticketStatus === 'valid' 
+                            ? 'bg-green-600 text-white hover:bg-green-700 shadow-green-900/20' 
+                            : 'bg-gray-200 text-gray-400 cursor-not-allowed border border-gray-300'
+                        }`}
+                     >
+                        {confirmLoading ? <Loader className="animate-spin" /> : <UserCheck />} 
+                        {ticketStatus === 'future' ? 'BOARDING NOT OPEN' : 
+                         ticketStatus === 'expired' ? 'TICKET EXPIRED' : 'CONFIRM BOARDING'}
                      </button>
                   )}
                   <button onClick={() => setTicketData(null)} className="w-full bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 py-5 rounded-2xl font-black text-lg active:scale-95 transition-all hover:bg-slate-200">Reset Scanner</button>
@@ -456,17 +487,17 @@ export default function Admin() {
                 <XCircle size={72} className="mx-auto text-red-500 mb-6" /><p className="text-red-400 font-bold mb-10 text-lg leading-relaxed">{scanError}</p><button onClick={() => {setScanError(''); setTicketData(null);}} className="bg-red-600 text-white px-12 py-4 rounded-2xl font-black shadow-lg">Try Again</button>
               </div>
             )}
-            {scanLoading && <div className="text-center py-20 animate-in fade-in"><Loader className="animate-spin text-indigo-500 mx-auto" size={64} /><p className="mt-6 font-black uppercase text-xs tracking-widest text-gray-500 tracking-[0.2em]">Authenticating Secure Key...</p></div>}
+            {scanLoading && <div className="text-center py-20 animate-in fade-in"><Loader className="animate-spin text-indigo-500 mx-auto" size={64} /><p className="mt-6 font-black uppercase text-xs tracking-widest text-gray-500">Connecting EnteBus Database...</p></div>}
           </div>
         </div>
       )}
 
       {/* --- TAB 4: COMPLAINTS --- */}
       {activeTab === 'complaints' && (
-        <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl border border-gray-200 dark:border-slate-700 animate-in slide-in-from-right-4 duration-500 transition-colors">
+        <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl border border-gray-200 dark:border-slate-700 animate-in slide-in-from-right-4 duration-500">
           <div className="flex items-center gap-3 mb-8 pb-6 border-b dark:border-slate-700">
             <div className="bg-yellow-100 dark:bg-yellow-900/30 p-3 rounded-xl text-yellow-600"><MessageSquareWarning size={32}/></div>
-            <div><h3 className="text-2xl font-black text-gray-900 dark:text-white uppercase italic tracking-tighter">Support & Feedback</h3><p className="text-gray-500 text-sm">Manage issues submitted by EnteBus travelers.</p></div>
+            <div><h3 className="text-2xl font-black text-gray-900 dark:text-white uppercase italic tracking-tighter">Support Tickets</h3><p className="text-gray-500 text-sm">Review issues submitted by travelers.</p></div>
           </div>
           <div className="space-y-4">
             {complaints.length > 0 ? complaints.map((c) => (
@@ -480,9 +511,9 @@ export default function Admin() {
                   <p className="text-gray-600 dark:text-slate-300 mt-2 mb-4 p-4 rounded-lg border dark:border-slate-700 italic bg-white dark:bg-slate-800">"{c.message}"</p>
                   <div className="flex items-center gap-4 text-[10px] font-black text-gray-400 uppercase tracking-widest"><span>Reported By: {c.name}</span><span>Email: {c.email}</span></div>
                 </div>
-                {c.status === 'Pending' && (<button onClick={() => handleResolveComplaint(c._id)} className="bg-green-600 text-white px-6 py-2 rounded-lg font-bold text-xs hover:bg-green-700 transition shadow-md whitespace-nowrap">Resolve Case</button>)}
+                {c.status === 'Pending' && (<button onClick={() => handleResolveComplaint(c._id)} className="bg-green-600 text-white px-6 py-2 rounded-lg font-bold text-xs hover:bg-green-700 transition shadow-md">Resolve Case</button>)}
               </div>
-            )) : <div className="text-center py-20 opacity-20"><p className="font-black uppercase tracking-widest">No active complaints found in database.</p></div>}
+            )) : <div className="text-center py-20 opacity-20"><p className="font-black uppercase tracking-widest">No active complaints.</p></div>}
           </div>
         </div>
       )}
