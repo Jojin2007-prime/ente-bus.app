@@ -1,118 +1,126 @@
-import React, { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { motion } from 'framer-motion';
-import { ArrowRight, Clock } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { Bus, ArrowLeft, Clock, IndianRupee, Loader, ChevronRight } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function BusResults() {
   const [buses, setBuses] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDates, setSelectedDates] = useState({}); 
-
   const location = useLocation();
   const navigate = useNavigate();
-
-  // Helper for 12h Time
-  const formatTime = (time24) => {
-    if (!time24) return "";
-    const [hours, minutes] = time24.split(':');
-    const period = +hours >= 12 ? 'PM' : 'AM';
-    const hours12 = (+hours % 12) || 12;
-    return `${hours12}:${minutes} ${period}`;
-  };
+  
+  // Extract parameters from URL
+  const queryParams = new URLSearchParams(location.search);
+  const from = queryParams.get('from');
+  const to = queryParams.get('to');
+  const date = queryParams.get('date');
 
   useEffect(() => {
     const fetchBuses = async () => {
       try {
-        const res = await axios.get(`https://entebus-api.onrender.com/api/buses${location.search}`);
+        setLoading(true);
+        // Using your specific API endpoint with query parameters
+        const res = await axios.get(`https://entebus-api.onrender.com/api/buses?from=${from}&to=${to}`);
         setBuses(res.data);
-      } catch (err) { console.error(err); } finally { setLoading(false); }
+      } catch (err) {
+        console.error("API Fetch Error:", err);
+      } finally {
+        setLoading(false);
+      }
     };
-    fetchBuses();
-  }, [location.search]);
+    
+    if (from && to) {
+      fetchBuses();
+    }
+  }, [from, to]);
 
-  const handleDateChange = (busId, dateValue) => setSelectedDates(prev => ({ ...prev, [busId]: dateValue }));
-
-  const proceedToSeatSelection = (busId) => {
-    const date = selectedDates[busId];
-    if (!date) { alert("Please select a travel date first."); return; }
-    navigate(`/seats/${busId}?date=${date}`);
-  };
+  if (loading) return (
+    <div className="min-h-screen bg-slate-900 flex flex-col justify-center items-center">
+      <Loader className="animate-spin text-indigo-500 mb-4" size={48} />
+      <p className="font-black italic uppercase text-indigo-500 tracking-[0.3em] animate-pulse">Scanning Fleet...</p>
+    </div>
+  );
 
   return (
-    // Update 1: Main background
-    <div className="min-h-screen bg-gray-50 dark:bg-slate-900 p-6 transition-colors duration-300">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900 p-6 md:p-10 transition-colors duration-300 pb-20">
       <div className="max-w-5xl mx-auto">
-        <h2 className="text-3xl font-black text-gray-800 dark:text-white mb-6">Available Routes</h2>
         
-        {loading ? (
-          <p className="text-center text-gray-500 dark:text-gray-400">Searching...</p>
-        ) : buses.length === 0 ? (
-          <p className="text-center dark:text-gray-300">No buses found.</p>
-        ) : (
-          <div className="grid gap-6">
-            {buses.map((bus, index) => (
-              <motion.div 
-                key={bus._id} 
-                initial={{ opacity: 0, y: 20 }} 
-                animate={{ opacity: 1, y: 0 }} 
-                transition={{ delay: index * 0.1 }} 
-                // Update 2: Card styling (Slate-800 for card background)
-                className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg flex flex-col md:flex-row justify-between items-center border border-gray-100 dark:border-slate-700 hover:shadow-xl transition-all"
-              >
-                
-                <div className="flex-1 w-full md:w-auto mb-4 md:mb-0">
-                  {/* Bus Name */}
-                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">{bus.name}</h3>
-                  
-                  {/* Route Info */}
-                  <div className="flex items-center gap-4 text-gray-600 dark:text-gray-300 mb-3">
-                    <span className="font-bold text-lg">{bus.from}</span> 
-                    <ArrowRight size={18} className="text-gray-400 dark:text-gray-500" /> 
-                    <span className="font-bold text-lg">{bus.to}</span>
-                  </div>
-                  
-                  {/* Time Badge */}
-                  <div className="flex gap-6 text-sm text-gray-500 dark:text-gray-400">
-                     <div className="flex items-center gap-1 bg-gray-100 dark:bg-slate-700 px-2 py-1 rounded transition-colors">
-                        <Clock size={14} className="text-orange-500" /> 
-                        Departs: <span className="text-gray-900 dark:text-white font-bold ml-1">{formatTime(bus.departureTime)}</span>
-                     </div>
-                  </div>
-                </div>
-
-                <div className="text-right w-full md:w-auto flex flex-col items-end">
-                  <p className="text-sm text-gray-400 dark:text-gray-500 mb-1">Price per seat</p>
-                  <p className="text-3xl font-black text-green-600 dark:text-green-400 mb-4">₹{bus.price}</p>
-                  
-                  <div className="flex flex-col items-end gap-2 w-full mb-3">
-                    <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase">Travel Date</label>
-                    <input 
-                        type="date" 
-                        min={new Date().toISOString().split("T")[0]} 
-                        // Update 3: Input Field Styling
-                        className="bg-gray-100 dark:bg-slate-700 border border-gray-300 dark:border-slate-600 p-2 rounded-lg text-sm font-bold text-gray-700 dark:text-white outline-none w-full md:w-48 text-right transition-colors dark:color-scheme-dark"
-                        onChange={(e) => handleDateChange(bus._id, e.target.value)}
-                    />
-                  </div>
-
-                  <button 
-                    onClick={() => proceedToSeatSelection(bus._id)} 
-                    disabled={!selectedDates[bus._id]} 
-                    // Update 4: Button Styling (Primary Indigo for Dark Mode, Black for Light)
-                    className={`px-8 py-3 rounded-xl font-bold transition w-full md:w-auto 
-                      ${selectedDates[bus._id] 
-                        ? 'bg-black dark:bg-indigo-600 text-white hover:bg-gray-800 dark:hover:bg-indigo-500' 
-                        : 'bg-gray-200 dark:bg-slate-700 text-gray-400 dark:text-slate-500 cursor-not-allowed'
-                      }`}
-                  >
-                    {selectedDates[bus._id] ? 'Select Seats' : 'Pick Date'}
-                  </button>
-                </div>
-              </motion.div>
-            ))}
+        {/* --- BRANDED HEADER --- */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
+          <div className="flex items-center gap-5">
+            <button 
+              onClick={() => navigate('/search')} 
+              className="p-3 bg-white dark:bg-slate-800 text-gray-700 dark:text-white rounded-2xl shadow-xl border dark:border-slate-700 hover:scale-110 active:scale-95 transition-all"
+            >
+              <ArrowLeft size={24} />
+            </button>
+            <div>
+              <h1 className="text-4xl font-black italic uppercase tracking-tighter text-gray-900 dark:text-white leading-none">
+                Available Fleet
+              </h1>
+              <div className="flex items-center gap-2 mt-3 font-black italic uppercase tracking-tighter text-sm text-indigo-500">
+                <span>{from}</span> 
+                <ChevronRight size={14} className="text-gray-400" /> 
+                <span>{to}</span>
+                <span className="ml-3 text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest text-[10px]">| {date}</span>
+              </div>
+            </div>
           </div>
-        )}
+        </div>
+
+        {/* --- BUS LIST --- */}
+        <div className="grid gap-8">
+          <AnimatePresence>
+            {buses.length > 0 ? (
+              buses.map((bus, index) => (
+                <motion.div 
+                  key={bus._id} 
+                  initial={{ opacity: 0, y: 20 }} 
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  className="bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] shadow-xl border border-gray-100 dark:border-slate-700 flex flex-col md:flex-row justify-between items-center group hover:shadow-2xl transition-all duration-300"
+                >
+                  <div className="text-center md:text-left">
+                    <span className="px-3 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-full text-[10px] font-black uppercase tracking-widest">
+                      Service Verified
+                    </span>
+                    <h3 className="text-4xl font-black italic uppercase text-gray-900 dark:text-white mt-3 group-hover:text-indigo-600 transition-colors leading-none">
+                      {bus.name}
+                    </h3>
+                    <div className="flex items-center gap-2 mt-4 text-gray-500 dark:text-slate-400 font-black italic uppercase text-xs justify-center md:justify-start">
+                      <Clock size={16} className="text-emerald-500" /> 
+                      Departs: {bus.departureTime}
+                    </div>
+                  </div>
+
+                  <div className="text-center md:text-right mt-8 md:mt-0 md:pl-12 md:border-l border-gray-100 dark:border-slate-700">
+                    <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1">Single Fare</p>
+                    <div className="flex items-center gap-1 text-5xl font-black italic text-gray-900 dark:text-white mb-8 tracking-tighter justify-center md:justify-end">
+                      <IndianRupee size={32} className="text-green-600" /> {bus.price}
+                    </div>
+                    <button 
+                      onClick={() => navigate(`/seat-selection/${bus._id}?date=${date}`)} 
+                      className="bg-slate-900 dark:bg-indigo-600 px-10 py-5 rounded-2xl text-white font-black italic uppercase text-lg shadow-xl shadow-indigo-600/20 active:scale-95 transition-all hover:bg-black dark:hover:bg-indigo-700"
+                    >
+                      Select Seats
+                    </button>
+                  </div>
+                </motion.div>
+              ))
+            ) : (
+              <motion.div 
+                initial={{ opacity: 0 }} 
+                animate={{ opacity: 1 }}
+                className="text-center py-24 bg-white dark:bg-slate-800 rounded-[3rem] border-2 border-dashed border-gray-200 dark:border-slate-700"
+              >
+                <Bus size={64} className="mx-auto text-slate-300 dark:text-slate-700 mb-6 opacity-20" />
+                <h2 className="text-2xl font-black italic uppercase tracking-tighter text-gray-400">No Routes Found</h2>
+                <p className="text-[10px] font-bold text-gray-300 dark:text-slate-600 uppercase tracking-widest mt-2">Try a different route or check back later</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
     </div>
   );
