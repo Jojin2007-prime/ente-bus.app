@@ -3,10 +3,10 @@ import axios from 'axios';
 import { Html5Qrcode } from 'html5-qrcode'; 
 import { useNavigate, Link } from 'react-router-dom';
 import { 
-  Shield, Plus, LogOut, Edit, Trash2, ClipboardList, 
-  Users, ArrowRight, History, Mail, Phone, MessageSquareWarning, 
-  CheckCircle, Bus, QrCode, Camera, StopCircle, RefreshCw,
-  XCircle, Loader, MapPin, Calendar, ChevronDown, UserCheck, AlertTriangle, User, ImageIcon, Printer
+  Shield, Plus, LogOut, Edit, Trash2, 
+  Users, ArrowRight, History, MessageSquareWarning, 
+  CheckCircle, Bus, QrCode, Camera, StopCircle, 
+  XCircle, Loader, UserCheck, AlertTriangle, User, Printer, Calendar
 } from 'lucide-react';
 
 export default function Admin() {
@@ -20,7 +20,7 @@ export default function Admin() {
 
   // --- QR Scanner Specific States ---
   const [ticketData, setTicketData] = useState(null);
-  const [ticketStatus, setTicketStatus] = useState(null); // 'valid', 'future', 'expired'
+  const [ticketStatus, setTicketStatus] = useState(null); 
   const [scanError, setScanError] = useState('');
   const [scanLoading, setScanLoading] = useState(false);
   const [confirmLoading, setConfirmLoading] = useState(false);
@@ -29,7 +29,6 @@ export default function Admin() {
   const [selectedCamera, setSelectedCamera] = useState('');
   
   const html5QrCodeRef = useRef(null);
-  const fileInputRef = useRef(null);
 
   // --- Manifest/Form States ---
   const [manifestBusId, setManifestBusId] = useState('');
@@ -44,7 +43,7 @@ export default function Admin() {
 
   const API_URL = "https://entebus-api.onrender.com";
 
-  // --- ✅ 1. SUCCESS BEEP LOGIC ---
+  // --- 1. SUCCESS BEEP LOGIC ---
   const playSuccessBeep = () => {
     try {
       const context = new (window.AudioContext || window.webkitAudioContext)();
@@ -94,7 +93,7 @@ export default function Admin() {
     } catch (err) { console.error(err); }
   };
 
-  // --- 3. SCANNER HARDWARE & MEDIA LOGIC ---
+  // --- 3. SCANNER HARDWARE LOGIC ---
   const initHardware = async () => {
     try {
       const devices = await Html5Qrcode.getCameras();
@@ -136,23 +135,6 @@ export default function Admin() {
     setIsCameraActive(false);
   };
 
-  const handleFileUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    setScanLoading(true); setScanError(''); setTicketData(null);
-    await stopScanner();
-    try {
-      const scanner = new Html5Qrcode("file-worker-admin");
-      const result = await scanner.scanFile(file, true);
-      handleScannedID(result);
-    } catch (err) {
-      setScanError("QR Code not readable from this image.");
-    } finally {
-      setScanLoading(false);
-      e.target.value = null;
-    }
-  };
-
   const handleScannedID = (decodedText) => {
     const idMatch = decodedText.match(/[a-f\d]{24}/i);
     if (idMatch) {
@@ -162,27 +144,25 @@ export default function Admin() {
     }
   };
 
-  // --- ✅ 4. TODAY-ONLY VERIFICATION LOGIC ---
+  // --- 4. TODAY-ONLY VERIFICATION LOGIC ---
   const verifyScannedTicket = async (id) => {
     setScanLoading(true); setScanError('');
     try {
       const res = await axios.get(`${API_URL}/api/verify/${id}`);
       const ticket = res.data;
       
-      // Date Comparison Logic
       const travelDate = new Date(ticket.travelDate);
       const today = new Date();
       
-      // Reset hours to compare only Dates
       travelDate.setHours(0, 0, 0, 0);
       today.setHours(0, 0, 0, 0);
 
       if (travelDate.getTime() < today.getTime()) {
-        setTicketStatus('expired'); // For yesterday or before
+        setTicketStatus('expired'); 
       } else if (travelDate.getTime() > today.getTime()) {
-        setTicketStatus('future');  // For tomorrow or later
+        setTicketStatus('future');  
       } else {
-        setTicketStatus('valid');   // Exactly for Today
+        setTicketStatus('valid');   
       }
 
       setTicketData(ticket);
@@ -202,7 +182,7 @@ export default function Admin() {
     finally { setConfirmLoading(false); }
   };
 
-  // --- 5. ACTION HANDLERS (BUS CRUD & COMPLAINTS) ---
+  // --- 5. ACTION HANDLERS ---
   const handleBusSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -272,7 +252,6 @@ export default function Admin() {
 
   return (
     <div className="p-6 md:p-10 bg-gray-50 dark:bg-slate-900 min-h-screen transition-colors duration-300">
-      <div id="file-worker-admin" style={{ display: 'none' }}></div>
       
       {/* --- HEADER --- */}
       <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
@@ -299,7 +278,7 @@ export default function Admin() {
            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-8">
              <Link to="/admin/history" className="p-6 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl shadow-sm hover:shadow-md transition flex flex-col items-center justify-center gap-3 text-center group no-underline">
                 <div className="bg-orange-100 dark:bg-orange-900/30 p-3 rounded-full text-orange-600 group-hover:bg-orange-600 group-hover:text-white transition"><History size={24}/></div>
-                <div><h3 className="font-bold text-gray-800 dark:text-white">Trip History</h3><p className="text-xs text-gray-500 dark:text-slate-400 mt-1">View revenue & trip records</p></div>
+                <div><h3 className="font-bold text-gray-800 dark:text-white">Trip History</h3><p className="text-xs text-gray-500 dark:text-slate-400 mt-1">View revenue & records</p></div>
              </Link>
            </div>
 
@@ -310,15 +289,15 @@ export default function Admin() {
             </h3>
             <form onSubmit={handleBusSubmit} className="grid grid-cols-1 md:grid-cols-4 gap-5">
               {[
-                { label: 'Bus Service Name', value: 'name', col: 'md:col-span-2', placeholder: 'KSRTC Super Fast' },
-                { label: 'Registration ID', value: 'registrationNumber', col: 'md:col-span-2', placeholder: 'KL-15-A-1234' },
-                { label: 'From', value: 'from', placeholder: 'Source' }, { label: 'To', value: 'to', placeholder: 'Destination' },
-                { label: 'Departure Time', value: 'departureTime', type: 'time' }, { label: 'Ticket Price (₹)', value: 'price', type: 'number' },
+                { label: 'Bus Service Name', value: 'name', col: 'md:col-span-2' },
+                { label: 'Registration ID', value: 'registrationNumber', col: 'md:col-span-2' },
+                { label: 'From', value: 'from' }, { label: 'To', value: 'to' },
+                { label: 'Departure Time', value: 'departureTime', type: 'time' }, { label: 'Price (₹)', value: 'price', type: 'number' },
                 { label: 'Driver Name', value: 'driverName', col: 'md:col-span-2' }, { label: 'Driver Contact', value: 'driverContact', col: 'md:col-span-2' },
               ].map((field, idx) => (
                 <div key={idx} className={field.col || ''}>
                   <label className="text-[10px] font-black uppercase text-gray-400 block mb-1 tracking-widest">{field.label}</label>
-                  <input type={field.type || 'text'} placeholder={field.placeholder} className="w-full p-3 border dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-white rounded-xl focus:ring-2 ring-indigo-500 outline-none transition-all" value={formData[field.value]} onChange={e => setFormData({...formData, [field.value]: e.target.value})} required />
+                  <input type={field.type || 'text'} className="w-full p-3 border dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-900 dark:text-white rounded-xl focus:ring-2 ring-indigo-500 outline-none transition-all" value={formData[field.value]} onChange={e => setFormData({...formData, [field.value]: e.target.value})} required />
                 </div>
               ))}
               <div className="col-span-full flex gap-3">
@@ -396,27 +375,21 @@ export default function Admin() {
         </div>
       )}
 
-      {/* --- TAB 3: SCANNER (WITH TODAY-ONLY LOGIC) --- */}
+      {/* --- TAB 3: SCANNER --- */}
       {activeTab === 'scanner' && (
         <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl border border-gray-200 dark:border-slate-700 animate-in slide-in-from-bottom-4 duration-500">
           <div className="max-w-xl mx-auto space-y-6">
             {!isCameraActive && !ticketData && !scanLoading && (
               <div className="space-y-6 bg-gray-50 dark:bg-slate-900 p-8 rounded-3xl border border-gray-100 dark:border-slate-700 shadow-inner text-center">
                 <div>
-                  <label className="text-[10px] font-black uppercase text-gray-400 block mb-2 tracking-widest">Conductor Hardware Lenses</label>
+                  <label className="text-[10px] font-black uppercase text-gray-400 block mb-2 tracking-widest">Hardware Lens Selection</label>
                   <select value={selectedCamera} onChange={(e) => setSelectedCamera(e.target.value)} className="w-full bg-white dark:bg-slate-800 border-2 border-gray-200 dark:border-slate-700 p-4 rounded-xl font-bold focus:ring-2 ring-indigo-500 transition-all outline-none">
-                    {cameras.map(cam => <option key={cam.id} value={cam.id}>{cam.label || `Hardware ${cam.id.slice(0,5)}`}</option>)}
+                    {cameras.map(cam => <option key={cam.id} value={cam.id}>{cam.label || `Camera ${cam.id.slice(0,5)}`}</option>)}
                   </select>
                 </div>
                 <button onClick={startScanner} className="w-full bg-indigo-600 text-white py-6 rounded-2xl font-black text-xl flex items-center justify-center gap-4 shadow-xl active:scale-95 transition-all shadow-indigo-900/40">
                   <Camera size={32} /> Open Boarding Scanner
                 </button>
-                <div className="py-2 opacity-30 text-[10px] font-black">OR</div>
-                <div onClick={() => fileInputRef.current.click()} className="bg-slate-200 dark:bg-slate-800 p-10 rounded-2xl border-2 border-dashed border-slate-400 text-center cursor-pointer hover:border-indigo-500 transition-all group">
-                   <ImageIcon size={40} className="mx-auto mb-2 text-slate-400 group-hover:text-indigo-500" />
-                   <p className="font-bold text-sm text-slate-500 group-hover:text-slate-200">Scan Passenger Screenshot</p>
-                </div>
-                <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*" className="hidden" />
               </div>
             )}
 
@@ -428,22 +401,19 @@ export default function Admin() {
                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 border-2 border-indigo-400 rounded-3xl animate-pulse pointer-events-none"></div>
                 </div>
                 <button onClick={stopScanner} className="mt-12 bg-red-600 text-white px-12 py-4 rounded-2xl font-black flex items-center gap-3 active:scale-95 transition-all shadow-xl">
-                  <StopCircle size={24} /> Close Scanner
+                  <StopCircle size={24} /> Stop Camera
                 </button>
               </div>
             )}
 
             {ticketData && (
               <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] overflow-hidden shadow-2xl animate-in zoom-in duration-500 border border-gray-200 dark:border-slate-700">
-                
-                {/* --- HEADER WITH TODAY-ONLY STATUS --- */}
                 <div className={`${
                     ticketStatus === 'valid' ? 'bg-green-600' : 
                     ticketStatus === 'future' ? 'bg-blue-600' : 'bg-orange-500'
                 } p-7 text-white text-center font-black text-xl tracking-wide flex items-center justify-center gap-3 shadow-lg`}>
                   {ticketStatus === 'valid' ? <CheckCircle size={28} /> : 
                    ticketStatus === 'future' ? <Calendar size={28} /> : <AlertTriangle size={28} />}
-                  
                   {ticketStatus === 'valid' ? 'ENTRY PERMITTED' : 
                    ticketStatus === 'future' ? 'FUTURE TICKET' : 'EXPIRED TICKET'}
                 </div>
@@ -460,11 +430,10 @@ export default function Admin() {
                     <div className="bg-gray-50 dark:bg-slate-900 p-5 rounded-3xl border dark:border-slate-700"><p className="text-[10px] text-gray-400 font-black uppercase mb-1 tracking-widest">Seats</p><p className="font-black text-lg dark:text-white tracking-widest">{ticketData.seatNumbers?.join(', ')}</p></div>
                   </div>
 
-                  {/* ✅ CONFIRM BOARDING BUTTON (ENABLED FOR TODAY ONLY) */}
                   {ticketData.status === 'Boarded' ? (
-                     <div className="bg-green-100 text-green-700 p-5 rounded-2xl text-center font-black border-2 border-green-200 flex items-center justify-center gap-2 uppercase tracking-tighter shadow-inner"><UserCheck /> Already Boarded</div>
+                      <div className="bg-green-100 text-green-700 p-5 rounded-2xl text-center font-black border-2 border-green-200 flex items-center justify-center gap-2 uppercase tracking-tighter shadow-inner"><UserCheck /> Already Boarded</div>
                   ) : (
-                     <button 
+                      <button 
                         onClick={confirmBoarding} 
                         disabled={confirmLoading || ticketStatus !== 'valid'} 
                         className={`w-full py-5 rounded-2xl font-black text-xl flex items-center justify-center gap-3 shadow-xl active:scale-95 transition-all ${
@@ -472,11 +441,11 @@ export default function Admin() {
                             ? 'bg-green-600 text-white hover:bg-green-700 shadow-green-900/20' 
                             : 'bg-gray-200 text-gray-400 cursor-not-allowed border border-gray-300'
                         }`}
-                     >
+                      >
                         {confirmLoading ? <Loader className="animate-spin" /> : <UserCheck />} 
                         {ticketStatus === 'future' ? 'BOARDING NOT OPEN' : 
                          ticketStatus === 'expired' ? 'TICKET EXPIRED' : 'CONFIRM BOARDING'}
-                     </button>
+                      </button>
                   )}
                   <button onClick={() => setTicketData(null)} className="w-full bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 py-5 rounded-2xl font-black text-lg active:scale-95 transition-all hover:bg-slate-200">Reset Scanner</button>
                 </div>
