@@ -17,3 +17,8 @@ body.barcode-scanner-active {
 body.barcode-scanner-active #root {
   background-color: transparent !important;
 }
+@layer components {
+  .brand-font {
+    @apply font-black italic uppercase tracking-tighter;
+  }
+}
