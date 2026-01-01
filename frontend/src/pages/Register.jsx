@@ -1,84 +1,117 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate, Link } from 'react-router-dom';
-import { toast } from 'react-toastify'; // ✅ IMPORT TOAST
-import { User, Lock, Mail, Eye, EyeOff } from 'lucide-react';
+import { toast } from 'react-toastify'; 
+import { User, Lock, Mail, Eye, EyeOff, UserPlus, ArrowLeft } from 'lucide-react';
 
 export default function Register() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleRegister = async (e) => {
     e.preventDefault();
+    setLoading(true);
     try {
       await axios.post('https://entebus-api.onrender.com/api/auth/register', { name, email, password });
-      
-      // ✅ BEAUTIFUL SUCCESS POPUP
       toast.success("Registration Successful! Please Login."); 
-      
       navigate('/login');
     } catch (err) {
-      // ❌ BEAUTIFUL ERROR POPUP
       toast.error(err.response?.data?.message || "Registration Failed! Email might already exist.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
-      <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-md">
-        <h2 className="text-3xl font-black text-gray-900 mb-2">Create Account</h2>
-        <p className="text-gray-500 mb-8">Join us to book your journey instantly.</p>
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900 flex items-center justify-center p-6 transition-colors duration-300">
+      <div className="max-w-md w-full">
+        
+        {/* Optional: Back Link */}
+        <Link to="/login-options" className="inline-flex items-center gap-2 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 font-bold text-xs uppercase tracking-widest mb-6 transition-colors">
+          <ArrowLeft size={16} /> Back to Gateway
+        </Link>
 
-        <form onSubmit={handleRegister} className="space-y-4">
-          <div className="bg-gray-50 p-3 rounded-xl border border-gray-200 flex items-center gap-3">
-            <div className="text-gray-400"><User size={20} /></div>
-            <input 
-              placeholder="Full Name" 
-              className="bg-transparent w-full outline-none font-medium text-gray-900"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              required
-            />
+        {/* --- Main Card --- */}
+        <div className="bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] shadow-xl w-full border border-transparent dark:border-slate-700 transition-colors">
+          <div className="mb-8 text-center md:text-left">
+            <h2 className="text-3xl font-black text-gray-900 dark:text-white mb-2 italic uppercase">Create Account</h2>
+            <p className="text-gray-500 dark:text-slate-400">Join EnteBus to book your journey instantly.</p>
           </div>
 
-          <div className="bg-gray-50 p-3 rounded-xl border border-gray-200 flex items-center gap-3">
-            <div className="text-gray-400"><Mail size={20} /></div>
-            <input 
-              type="email" 
-              placeholder="Email Address" 
-              className="bg-transparent w-full outline-none font-medium text-gray-900"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              required
-            />
-          </div>
+          <form onSubmit={handleRegister} className="space-y-5">
+            
+            {/* Full Name Input */}
+            <div className="space-y-1">
+              <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 ml-1">Full Name</label>
+              <div className="bg-gray-50 dark:bg-slate-900 p-3.5 rounded-2xl border border-gray-200 dark:border-slate-700 flex items-center gap-3 transition-all focus-within:ring-2 ring-indigo-500">
+                <div className="text-gray-400 dark:text-slate-500"><User size={20} /></div>
+                <input 
+                  placeholder="e.g. Jojin John" 
+                  className="bg-transparent w-full outline-none font-medium text-gray-900 dark:text-white placeholder-gray-300 dark:placeholder-slate-600"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
 
-          <div className="bg-gray-50 p-3 rounded-xl border border-gray-200 flex items-center gap-3">
-            <div className="text-gray-400"><Lock size={20} /></div>
-            <input 
-              type={showPassword ? "text" : "password"} 
-              placeholder="Password" 
-              className="bg-transparent w-full outline-none font-medium text-gray-900"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              required
-            />
-            <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-gray-400 hover:text-gray-600">
-              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+            {/* Email Input */}
+            <div className="space-y-1">
+              <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 ml-1">Email Address</label>
+              <div className="bg-gray-50 dark:bg-slate-900 p-3.5 rounded-2xl border border-gray-200 dark:border-slate-700 flex items-center gap-3 transition-all focus-within:ring-2 ring-indigo-500">
+                <div className="text-gray-400 dark:text-slate-500"><Mail size={20} /></div>
+                <input 
+                  type="email" 
+                  placeholder="name@example.com" 
+                  className="bg-transparent w-full outline-none font-medium text-gray-900 dark:text-white placeholder-gray-300 dark:placeholder-slate-600"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Password Input */}
+            <div className="space-y-1">
+              <label className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 ml-1">Password</label>
+              <div className="bg-gray-50 dark:bg-slate-900 p-3.5 rounded-2xl border border-gray-200 dark:border-slate-700 flex items-center gap-3 transition-all focus-within:ring-2 ring-indigo-500">
+                <div className="text-gray-400 dark:text-slate-500"><Lock size={20} /></div>
+                <input 
+                  type={showPassword ? "text" : "password"} 
+                  placeholder="••••••••" 
+                  className="bg-transparent w-full outline-none font-medium text-gray-900 dark:text-white placeholder-gray-300 dark:placeholder-slate-600"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  required
+                />
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="text-gray-400 hover:text-indigo-600 transition-colors">
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
+            </div>
+
+            {/* Register Button */}
+            <button 
+              disabled={loading}
+              className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black text-lg uppercase tracking-widest hover:bg-indigo-700 transition shadow-lg shadow-indigo-200 dark:shadow-none active:scale-95 flex items-center justify-center gap-2"
+            >
+              {loading ? (
+                <div className="w-6 h-6 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
+              ) : (
+                <>Register Now <UserPlus size={20}/></>
+              )}
             </button>
-          </div>
+          </form>
 
-          <button className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 transition shadow-lg shadow-indigo-200">
-            Register Now
-          </button>
-        </form>
-
-        <p className="text-center mt-6 text-gray-500">
-          Already have an account? <Link to="/login" className="text-indigo-600 font-bold hover:underline">Login</Link>
-        </p>
+          {/* Footer Link */}
+          <p className="text-center mt-8 text-gray-500 dark:text-slate-400 font-bold">
+            Already have an account? <Link to="/login" className="text-indigo-600 dark:text-indigo-400 hover:underline">Login Here</Link>
+          </p>
+        </div>
       </div>
     </div>
   );
