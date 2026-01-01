@@ -27,11 +27,10 @@ export default function TicketVerifier() {
     const initHardware = async () => {
         try {
             setError('');
-            // Get available cameras using the professional library
             const devices = await Html5Qrcode.getCameras();
             if (devices && devices.length > 0) {
                 setCameras(devices);
-                // Default logic: Priority to the Back/Rear camera
+                // Priority: select the back/rear camera if it exists
                 const backCam = devices.find(d => 
                     d.label.toLowerCase().includes('back') || 
                     d.label.toLowerCase().includes('rear') ||
@@ -50,7 +49,6 @@ export default function TicketVerifier() {
 
     useEffect(() => {
         initHardware();
-        // Cleanup scanner on component unmount
         return () => {
             if (html5QrCodeRef.current?.isScanning) {
                 html5QrCodeRef.current.stop().catch(e => console.error(e));
@@ -73,8 +71,12 @@ export default function TicketVerifier() {
                 html5QrCodeRef.current = html5QrCode;
 
                 const config = {
-                    fps: 15,
-                    qrbox: { width: 250, height: 250 },
+                    fps: 20,
+                    qrbox: (viewfinderWidth, viewfinderHeight) => {
+                        const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+                        const size = Math.floor(minEdge * 0.75);
+                        return { width: size, height: size };
+                    },
                     aspectRatio: 1.0
                 };
 
@@ -82,11 +84,11 @@ export default function TicketVerifier() {
                     selectedCamera, 
                     config, 
                     (decodedText) => handleScannedID(decodedText),
-                    () => {} // Quietly handle frame-by-frame scan misses
+                    () => {} // handle misses silently
                 );
             } catch (err) {
                 console.error("Camera Start Error:", err);
-                setError("Failed to start scanner. Lens may be blocked or in use.");
+                setError("Failed to start scanner. Lens might be in use.");
                 setIsCameraActive(false);
             }
         }, 300);
@@ -106,7 +108,7 @@ export default function TicketVerifier() {
     };
 
     const handleScannedID = (decodedText) => {
-        // Find 24-character MongoDB ID
+        // Regex to extract the 24-character MongoDB ID
         const cleanID = decodedText.replace('TicketID:', '').trim();
         const idMatch = cleanID.match(/[a-f\d]{24}/i);
         
@@ -116,7 +118,7 @@ export default function TicketVerifier() {
         }
     };
 
-    // --- 3. FIX: RELIABLE MEDIA UPLOAD ---
+    // --- 3. HIGH ACCURACY MEDIA UPLOAD (THE FIX) ---
     const handleFileUpload = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -125,29 +127,65 @@ export default function TicketVerifier() {
         setError('');
         setTicketData(null);
 
-        // We use a hidden dedicated worker div to prevent conflicts with the live camera
+        // Use a dedicated invisible worker div for file scanning
         const tempScanner = new Html5Qrcode("file-scan-worker");
         
         try {
+            // PASS 1: Raw File Scan
             const decodedText = await tempScanner.scanFile(file, true);
             handleScannedID(decodedText);
         } catch (err) {
-            setError("QR Code not detected. Please ensure the screenshot is sharp and clear.");
+            // PASS 2: Custom Contrast Enhancement Repair
+            try {
+                const repairedText = await attemptManualRepair(file);
+                handleScannedID(repairedText);
+            } catch (manualErr) {
+                setError("QR Code not detected. Please ensure the screenshot is sharp and bright.");
+            }
         } finally {
             setLoading(false);
             try { tempScanner.clear(); } catch(e) {}
-            e.target.value = null; // Allow re-uploading same file
+            e.target.value = null; // Clear input for next use
         }
     };
 
-    // --- 4. DATA VERIFICATION ---
+    // Manual Vision Pre-processing logic
+    const attemptManualRepair = (file) => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = async () => {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    canvas.width = img.width; canvas.height = img.height;
+                    
+                    // Boost contrast and remove color noise for accuracy
+                    ctx.filter = 'contrast(2.5) grayscale(1)';
+                    ctx.drawImage(img, 0, 0);
+                    
+                    const repairScanner = new Html5Qrcode("file-scan-worker");
+                    canvas.toBlob(async (blob) => {
+                        try {
+                            const repairedFile = new File([blob], "repaired.png", { type: "image/png" });
+                            const result = await repairScanner.scanFile(repairedFile, false);
+                            resolve(result);
+                        } catch (e) { reject(e); }
+                    });
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    };
+
+    // --- 4. VERIFICATION LOGIC ---
     const verifyTicket = async (id) => {
         setLoading(true); setTicketData(null); setError(''); setTicketStatus(null);
         try {
             const res = await axios.get(`${API_URL}/api/verify/${id}`);
             const ticket = res.data;
             
-            // Check travel date vs today
             const travelDate = new Date(ticket.travelDate);
             const today = new Date();
             today.setHours(0, 0, 0, 0); travelDate.setHours(0, 0, 0, 0);
@@ -168,11 +206,11 @@ export default function TicketVerifier() {
             <div id="file-scan-worker" style={{ display: 'none' }}></div>
 
             <header className="text-center mb-10 animate-in fade-in duration-700">
-                <div className="bg-indigo-600/20 p-5 rounded-full w-fit mx-auto mb-4 border border-indigo-500/30">
+                <div className="bg-indigo-600/20 p-5 rounded-full w-fit mx-auto mb-4 border border-indigo-500/30 shadow-[0_0_40px_rgba(79,70,229,0.3)]">
                     <QrCode className="text-indigo-500" size={50} />
                 </div>
                 <h2 className="text-3xl font-black tracking-tight uppercase italic">Ente Bus Verifier</h2>
-                <p className="text-slate-400 text-sm font-bold tracking-widest uppercase mt-1">Universal Entry System</p>
+                <p className="text-slate-400 text-sm font-bold tracking-widest uppercase mt-1">Dual-Mode Entry System</p>
             </header>
 
             {/* LIVE CAMERA OVERLAY */}
@@ -180,11 +218,10 @@ export default function TicketVerifier() {
                 <div className="fixed inset-0 bg-black z-50 flex flex-col items-center justify-center p-4">
                     <div className="relative w-full max-w-md aspect-square rounded-[3rem] border-4 border-indigo-500 overflow-hidden shadow-[0_0_80px_rgba(79,70,229,0.4)]">
                         <div id="reader" className="w-full h-full bg-slate-950"></div>
-                        
                         <div className="absolute inset-0 border-[60px] border-black/50 pointer-events-none"></div>
                         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 border-2 border-indigo-400 rounded-3xl animate-pulse pointer-events-none"></div>
                     </div>
-                    <button onClick={stopCamera} className="mt-12 bg-red-600 hover:bg-red-700 px-12 py-4 rounded-2xl font-black flex items-center gap-3 transition-all active:scale-95 shadow-xl">
+                    <button onClick={stopCamera} className="mt-12 bg-red-600 hover:bg-red-700 px-12 py-4 rounded-2xl font-black flex items-center gap-3 shadow-xl active:scale-95 transition-all">
                         <StopCircle size={24} /> Close Scanner
                     </button>
                 </div>
@@ -194,14 +231,13 @@ export default function TicketVerifier() {
             {!ticketData && !loading && !error && !isCameraActive && (
                 <div className="w-full max-w-sm space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     
-                    {/* LENS SELECTION */}
-                    <div className="bg-slate-800 p-6 rounded-3xl border border-slate-700">
-                        <label className="text-[10px] font-black uppercase text-gray-500 tracking-widest ml-1 mb-2 block">Choose Hardware</label>
+                    <div className="bg-slate-800 p-6 rounded-3xl border border-slate-700 shadow-2xl">
+                        <label className="text-[10px] font-black uppercase text-gray-500 tracking-widest ml-1 mb-2 block">Available Lens</label>
                         <div className="relative">
                             <select 
                                 value={selectedCamera} 
                                 onChange={(e) => setSelectedCamera(e.target.value)}
-                                className="w-full bg-slate-900 border border-slate-700 p-4 rounded-xl appearance-none font-bold text-sm outline-none focus:border-indigo-500 transition-all pr-10"
+                                className="w-full bg-slate-900 border border-slate-700 p-4 rounded-xl appearance-none font-bold text-sm outline-none focus:ring-2 ring-indigo-500 transition-all pr-10"
                             >
                                 {cameras.length === 0 && <option>Waiting for device list...</option>}
                                 {cameras.map(cam => (
@@ -212,11 +248,11 @@ export default function TicketVerifier() {
                             </select>
                             <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={18} />
                         </div>
-                        <button onClick={initHardware} className="text-[10px] text-indigo-400 font-bold flex items-center gap-1 mt-3 ml-1 active:scale-95 transition-all"><RefreshCw size={10}/> Reload Camera List</button>
+                        <button onClick={initHardware} className="text-[10px] text-indigo-400 font-bold flex items-center gap-1 mt-3 ml-1 active:scale-95 transition-all"><RefreshCw size={10}/> Reload Lens Hardware</button>
                     </div>
 
-                    <button onClick={startCamera} className="w-full bg-indigo-600 hover:bg-indigo-500 py-6 rounded-3xl font-black text-xl flex items-center justify-center gap-4 shadow-xl active:scale-95 shadow-indigo-900/40 transition-all">
-                        <Camera size={32} /> Scan Ticket
+                    <button onClick={startCamera} className="w-full bg-indigo-600 hover:bg-indigo-500 py-6 rounded-3xl font-black text-xl flex items-center justify-center gap-4 shadow-xl active:scale-95 transition-all">
+                        <Camera size={32} /> Scan Ticket QR
                     </button>
 
                     <div className="flex items-center gap-4 py-2 opacity-30">
@@ -227,7 +263,8 @@ export default function TicketVerifier() {
 
                     <div onClick={() => fileInputRef.current.click()} className="bg-slate-800/50 p-10 rounded-3xl border-2 border-dashed border-slate-700 text-center cursor-pointer hover:border-indigo-500 transition-all group shadow-2xl">
                         <ImageIcon size={48} className="mx-auto text-slate-600 group-hover:text-indigo-500 mb-4 transition-colors" />
-                        <p className="font-bold text-slate-400 group-hover:text-slate-200">Upload Screenshot</p>
+                        <p className="font-bold text-slate-400 group-hover:text-slate-200">Verify from Screenshot</p>
+                        <p className="text-[10px] text-slate-500 uppercase font-black mt-1">High-Accuracy Engine</p>
                     </div>
                     <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*" className="hidden" />
                 </div>
@@ -242,20 +279,20 @@ export default function TicketVerifier() {
                     </div>
 
                     <div className="p-8 space-y-6">
-                        {/* Passenger Detail */}
+                        {/* Passenger */}
                         <div className="flex gap-5 border-b border-gray-100 pb-5">
                             <div className="bg-indigo-50 p-4 rounded-2xl text-indigo-600"><User size={28} /></div>
                             <div>
                                 <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Passenger Name</p>
-                                <p className="font-bold text-2xl text-slate-800 leading-tight">{ticketData.customerName || ticketData.customerEmail}</p>
+                                <p className="font-bold text-2xl text-gray-800 leading-tight">{ticketData.customerName || ticketData.customerEmail}</p>
                             </div>
                         </div>
 
-                        {/* Bus Details Row with BUS NAME */}
+                        {/* Bus Name & Route */}
                         <div className="flex gap-5 border-b border-gray-100 pb-5">
                             <div className="bg-orange-50 p-4 rounded-2xl text-orange-600"><Bus size={28} /></div>
                             <div className="flex-1">
-                                <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-1">Bus Service</p>
+                                <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1">Bus Service</p>
                                 <p className="font-bold text-xl text-gray-900 mb-1 leading-tight">
                                     {ticketData.busId?.name || "EnteBus Standard"}
                                 </p>
@@ -267,7 +304,7 @@ export default function TicketVerifier() {
                             </div>
                         </div>
 
-                        {/* Travel Grid */}
+                        {/* Timing Grid */}
                         <div className="grid grid-cols-2 gap-4">
                             <div className="bg-slate-50 p-5 rounded-3xl border border-slate-100">
                                 <p className="text-[10px] text-slate-400 font-black uppercase mb-1">Date</p>
@@ -293,7 +330,7 @@ export default function TicketVerifier() {
                 </div>
             )}
 
-            {/* GLOBAL LOADER */}
+            {/* LOADER */}
             {loading && (
                 <div className="text-center py-10 animate-in fade-in duration-300">
                     <Loader className="animate-spin text-indigo-500 mx-auto" size={64} />
