@@ -45,7 +45,7 @@ export default function Register() {
             </div>
 
             {/* ✅ FONT STYLE APPLIED: font-black, italic, uppercase, tracking-tighter */}
-            <h2 className="text-4xl font-black italic uppercase tracking-tighter text-gray-900 dark:text-white leading-none">
+            <h2 className="text-3xl font-black text-gray-900 dark:text-white mb-2">
               Create Account
             </h2>
             <p className="text-gray-500 dark:text-slate-400 font-bold uppercase text-[10px] tracking-[0.2em] mt-3 opacity-70">
