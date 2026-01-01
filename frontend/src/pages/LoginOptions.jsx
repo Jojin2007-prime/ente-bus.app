@@ -13,7 +13,7 @@ export default function LoginOptions() {
            <BusLogo />
         </div>
         <h1 className="text-4xl font-black text-slate-900 dark:text-white uppercase italic tracking-tighter">
-          Ente<span className="text-indigo-600 dark:text-indigo-400">Bus</span> Gateway
+          Ente<span className="text-indigo-600 dark:text-indigo-400">Bus</span> Login
         </h1>
         <p className="text-slate-500 dark:text-slate-400 font-bold uppercase text-xs tracking-[0.2em] mt-2">Choose your login type</p>
       </div>
