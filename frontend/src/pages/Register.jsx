@@ -39,12 +39,12 @@ export default function Register() {
         <div className="bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] shadow-2xl w-full border border-transparent dark:border-slate-700 transition-colors">
           
           <div className="mb-8 text-center md:text-left">
-            {/* ✅ LOGO ICON ADDED TO MATCH IMAGE STYLE */}
+            {/* LOGO ICON MATCHING THE IMAGE STYLE */}
             <div className="bg-indigo-100 dark:bg-indigo-900/30 w-14 h-14 rounded-2xl flex items-center justify-center mb-4 mx-auto md:mx-0">
                <Bus className="text-indigo-600 dark:text-indigo-400" size={32} />
             </div>
 
-            {/* ✅ TYPOGRAPHY APPLIED HERE: font-black, italic, uppercase, tracking-tighter */}
+            {/* ✅ FIXED TYPOGRAPHY: font-black, italic, uppercase, tracking-tighter */}
             <h2 className="text-4xl font-black italic uppercase tracking-tighter text-gray-900 dark:text-white leading-none">
               Create Account
             </h2>
