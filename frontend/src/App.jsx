@@ -40,20 +40,24 @@ export default function App() {
   return (
     <ThemeProvider>
       <BrowserRouter>
-        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 font-sans text-gray-900 dark:text-white transition-colors duration-300 relative pb-20 md:pb-0">
+        {/* ✅ MOBILE UPDATE: 
+          'pb-[calc(5rem+env(safe-area-inset-bottom))]' ensures content 
+          is not hidden behind the BottomNav on iPhones and Androids.
+        */}
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 font-sans text-gray-900 dark:text-white transition-colors duration-300 relative pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0">
           
-          {/* Navigation */}
           <Navbar />
           
-          {/* Notification System */}
           <ToastContainer 
             position="top-center" 
             autoClose={3000} 
             theme="colored" 
             hideProgressBar={false}
+            closeOnClick
+            pauseOnHover
+            draggable
           />
 
-          {/* Main Routing Architecture */}
           <Routes>
             {/* Core Booking Flow */}
             <Route path="/" element={<Landing />} />
@@ -86,7 +90,6 @@ export default function App() {
             <Route path="/admin/complaints" element={<AdminComplaints />} />
           </Routes>
 
-          {/* Mobile Navigation */}
           <BottomNav />
 
         </div>

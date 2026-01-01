@@ -2,29 +2,55 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    
     <link rel="icon" type="image/jpeg" href="/favicon.png" sizes="32x32" />
     <link rel="apple-touch-icon" href="/favicon.png" />
+    
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap"
-     rel="stylesheet"/>
- 
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     
+    <meta name="theme-color" content="#4f46e5"> 
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
     <title>EnteBus - Online Booking</title>
+    
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
     
     <style>
-      /* Removes the gray tap highlight on Android/iOS */
-      * { -webkit-tap-highlight-color: transparent; }
-      
-      /* Smooth scrolling for mobile */
+      /* --- GLOBAL MOBILE FIXES --- */
+
+      /* 1. Removes the blue/gray highlight box when tapping buttons on Android/iOS */
+      * { 
+        -webkit-tap-highlight-color: transparent; 
+        -webkit-touch-callout: none;
+      }
+
+      /* 2. Optimized scrolling & background consistency */
       body {
         margin: 0;
         padding: 0;
-        background-color: #f9fafb;
+        background-color: #f9fafb; /* Matches your gray-50 Tailwind color */
         -webkit-font-smoothing: antialiased;
+        overscroll-behavior-y: contain; /* Prevents "pull-to-refresh" glitches */
+        height: 100%;
+        width: 100%;
+      }
+
+      /* 3. Smooth font rendering */
+      html {
+        -webkit-text-size-adjust: 100%;
+      }
+
+      /* 4. Fix for bottom nav spacing on modern mobile browsers */
+      :root {
+        --sat: env(safe-area-inset-top);
+        --sar: env(safe-area-inset-right);
+        --sab: env(safe-area-inset-bottom);
+        --sal: env(safe-area-inset-left);
       }
     </style>
   </head>

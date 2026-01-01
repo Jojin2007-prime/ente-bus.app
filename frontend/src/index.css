@@ -2,10 +2,37 @@
 @tailwind components;
 @tailwind utilities;
 
-html { scroll-behavior: smooth; }
+/* Smooth scrolling for anchor links and navigation */
+html { 
+  scroll-behavior: smooth; 
+  /* Prevents content jumping when the browser address bar hides/shows */
+  height: -webkit-fill-available;
+}
 
 @layer base {
   body {
     @apply bg-gray-50 text-gray-900 dark:bg-slate-900 dark:text-gray-100 transition-colors duration-300;
+    /* Optimizes font rendering for high-resolution mobile screens */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* Prevents horizontal scrolling on the entire page */
+    @apply overflow-x-hidden;
+  }
+}
+
+@layer utilities {
+  /* ✅ Hides scrollbar on mobile but keeps swipe functionality */
+  /* Used for the 7-item BottomNav on small screens */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+
+  /* Glassmorphism utility for modern UI cards */
+  .glass {
+    @apply bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border border-white/20 dark:border-slate-700/50;
   }
 }
