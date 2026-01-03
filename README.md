@@ -17,6 +17,7 @@ EnteBus is a professional Full-Stack (MERN) web application designed to moderniz
 
 *QR Ticket Scanning: Digital ticket verification system for smooth boarding.
 
+****************************************************************************************************************************************************************************************************
 
   Admin Module
 *Fleet Management: Add, update, or remove buses and schedules.
@@ -25,7 +26,7 @@ EnteBus is a professional Full-Stack (MERN) web application designed to moderniz
 
 *Analytics Dashboard: Overview of total bookings and revenue.
 
-
+****************************************************************************************************************************************************************************************************
 
 
 
