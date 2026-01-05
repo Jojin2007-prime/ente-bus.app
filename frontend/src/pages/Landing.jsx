@@ -1,8 +1,9 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { toast } from 'react-toastify';
 import { 
-  Bus, Clock, CreditCard, Star, CheckCircle, QrCode 
+  Bus, Clock, CreditCard, Star, CheckCircle, QrCode, Lock 
 } from 'lucide-react';
 
 // --- ASSETS IMPORT ---
@@ -10,13 +11,21 @@ import busImage from '../assets/bus.png';
 
 export default function Landing() {
   const navigate = useNavigate();
+  
+  // ✅ LOGIC: Check login status
+  const user = JSON.parse(localStorage.getItem('user'));
 
   const handleBookTicket = () => {
-    const user = JSON.parse(localStorage.getItem('user'));
     user ? navigate('/search') : navigate('/login');
   };
 
+  // ✅ LOGIC: Protected Scanner Handler
   const handleScanTicket = () => {
+    if (!user) {
+      toast.warn("Please login to access the Ticket Scanner");
+      navigate('/login');
+      return;
+    }
     navigate('/verify');
   };
 
@@ -65,13 +74,17 @@ export default function Landing() {
                 Book Ticket Now
               </button>
 
-              {/* MOBILE-ONLY SCAN BUTTON */}
+              {/* ✅ UPDATED: SCAN BUTTON WITH LOGIN COVER */}
               <button
                 onClick={handleScanTicket}
-                className="w-full sm:hidden bg-indigo-600 px-8 py-4 rounded-xl font-black text-lg hover:bg-indigo-500 transition shadow-xl flex items-center justify-center gap-2"
+                className={`w-full sm:hidden px-8 py-4 rounded-xl font-black text-lg transition shadow-xl flex items-center justify-center gap-2
+                  ${!user 
+                    ? 'bg-indigo-400/50 text-indigo-200 grayscale cursor-pointer' 
+                    : 'bg-indigo-600 text-white hover:bg-indigo-500 hover:scale-105 active:scale-95'
+                  }`}
               >
-                <QrCode size={22} />
-                Scan Ticket
+                {user ? <QrCode size={22} /> : <Lock size={22} />}
+                {user ? 'Scan Ticket' : 'Unlock Scanner'}
               </button>
             </div>
           </motion.div>

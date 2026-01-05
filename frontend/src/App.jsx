@@ -29,9 +29,7 @@ import BookingSuccess from './pages/BookingSuccess';
 import Payment from './pages/Payment';
 import Complaint from './pages/Complaint';
 import TicketVerifier from './pages/TicketVerifier';
-
-// --- NEW PAGE IMPORT ---
-import ResetPassword from './pages/ResetPassword'; //
+import ResetPassword from './pages/ResetPassword';
 
 // Admin Pages
 import Admin from './pages/Admin';
@@ -44,8 +42,8 @@ export default function App() {
     <ThemeProvider>
       <BrowserRouter>
         {/* ✅ MOBILE UPDATE: 
-           'pb-[calc(5rem+env(safe-area-inset-bottom))]' ensures content 
-           is not hidden behind the BottomNav on iPhones and Androids.
+            'pb-[calc(5rem+env(safe-area-inset-bottom))]' ensures content 
+            is not hidden behind the BottomNav on iPhones and Androids.
         */}
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900 font-sans text-gray-900 dark:text-white transition-colors duration-300 relative pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0">
           
@@ -72,10 +70,7 @@ export default function App() {
             <Route path="/login-options" element={<LoginOptions />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
-            
-            {/* --- NEW PASSWORD RESET ROUTE --- */}
-            <Route path="/reset-password" element={<ResetPassword />} /> {/* */}
-            
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/switch-user" element={<SwitchUserWarning />} />
             
             {/* User Features & Information */}
