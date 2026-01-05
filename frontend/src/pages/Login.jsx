@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-toastify'; 
-import { User, Lock, Eye, EyeOff, AlertTriangle, LogOut } from 'lucide-react';
+import { User, Lock, Eye, EyeOff, AlertTriangle, LogOut, LifeBuoy } from 'lucide-react'; // Added LifeBuoy icon for reset
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -42,9 +42,7 @@ export default function Login() {
   // --- SCENARIO 1: ADMIN IS LOGGED IN (Show Warning) ---
   if (isAdminLoggedIn) {
     return (
-      // Update 1: Background
       <div className="min-h-screen bg-red-50 dark:bg-red-950/30 flex items-center justify-center p-6 transition-colors duration-300">
-        {/* Update 2: Card */}
         <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-xl max-w-md w-full text-center border-t-8 border-red-500 transition-colors">
           <div className="flex justify-center mb-6">
             <div className="bg-red-100 dark:bg-red-900/50 p-4 rounded-full text-red-600 dark:text-red-400">
@@ -78,9 +76,7 @@ export default function Login() {
 
   // --- SCENARIO 2: NORMAL LOGIN FORM (For Guests) ---
   return (
-    // Update 3: Background
     <div className="min-h-screen bg-gray-50 dark:bg-slate-900 flex items-center justify-center p-6 transition-colors duration-300">
-      {/* Update 4: Card */}
       <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-xl w-full max-w-md transition-colors">
         <h2 className="text-3xl font-black text-gray-900 dark:text-white mb-2">Welcome Back</h2>
         <p className="text-gray-500 dark:text-slate-400 mb-8">Please enter your details to sign in.</p>
@@ -99,9 +95,11 @@ export default function Login() {
             />
           </div>
 
-          {/* Password Input */}
+          {/* Password Input Group */}
           <div className="bg-gray-50 dark:bg-slate-900 p-3 rounded-xl border border-gray-200 dark:border-slate-700 flex items-center gap-3 transition-colors">
-            <div className="text-gray-400 dark:text-slate-500"><Lock size={20} /></div>
+            <div className="text-gray-400 dark:text-slate-500">
+              <Lock size={20} />
+            </div>
             <input 
               type={showPassword ? "text" : "password"}
               placeholder="Password" 
@@ -114,6 +112,17 @@ export default function Login() {
               {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
             </button>
           </div>
+
+          {/* --- NEW: Forgot Password Link inside the box --- */}
+          <div className="flex justify-end px-1">
+            <Link 
+              to="/reset-password" 
+              className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors flex items-center gap-1"
+            >
+              <LifeBuoy size={14} /> Forgot Password?
+            </Link>
+          </div>
+          {/* ----------------------------------------------- */}
 
           <button className="w-full bg-gray-900 dark:bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-black dark:hover:bg-indigo-500 transition shadow-lg shadow-gray-200 dark:shadow-none">
             Sign In
