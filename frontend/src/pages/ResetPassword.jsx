@@ -14,7 +14,7 @@ export default function ResetPassword() {
   const handleReset = async (e) => {
     e.preventDefault();
 
-    // Enforce 8-character minimum for the new password
+    // 1. Frontend validation for 8-character length
     if (newPassword.length < 8) {
       toast.error('New password must be at least 8 characters long!');
       return;
@@ -22,15 +22,25 @@ export default function ResetPassword() {
 
     setLoading(true);
     try {
-      await axios.post('https://entebus-api.onrender.com/api/auth/reset-password', { 
-        email, 
+      // 2. Sending request to the backend
+      // Ensure the email is sent in lowercase to match our backend fix
+      const response = await axios.post('https://entebus-api.onrender.com/api/auth/reset-password', { 
+        email: email.toLowerCase(), 
         newPassword 
       });
 
-      toast.success('Password updated successfully! Please login.');
-      navigate('/login');
+      toast.success(response.data.message || 'Password updated successfully!'); //
+      
+      // Small delay before redirecting to allow the user to read the toast
+      setTimeout(() => {
+        navigate('/login');
+      }, 2000);
+
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to reset password. Check the email.');
+      // 3. Extracting the exact error message from the backend
+      const errorMessage = err.response?.data?.message || 'Failed to reset password. Check the email.';
+      toast.error(errorMessage);
+      console.error('Reset Error:', err.response?.data); //
     } finally {
       setLoading(false);
     }
@@ -40,6 +50,7 @@ export default function ResetPassword() {
     <div className="min-h-screen bg-gray-50 dark:bg-slate-900 flex items-center justify-center p-6 transition-colors duration-300">
       <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-xl w-full max-w-md transition-colors border border-transparent dark:border-slate-700">
         
+        {/* Navigation Back */}
         <Link
           to="/login"
           className="inline-flex items-center gap-2 text-gray-400 hover:text-indigo-500 font-bold text-sm mb-6 transition-colors"
@@ -47,6 +58,7 @@ export default function ResetPassword() {
           <ArrowLeft size={16} /> Back to Login
         </Link>
 
+        {/* Visual Icon */}
         <div className="bg-orange-100 dark:bg-orange-500/20 w-12 h-12 rounded-2xl flex items-center justify-center mb-6">
           <KeyRound className="text-orange-600 dark:text-orange-400" size={28} />
         </div>
@@ -55,6 +67,7 @@ export default function ResetPassword() {
         <p className="text-gray-500 dark:text-slate-400 mb-8">Enter your registered email and a new password.</p>
 
         <form onSubmit={handleReset} className="space-y-4">
+          {/* Email Input */}
           <div className="bg-gray-50 dark:bg-slate-900 p-3 rounded-xl border border-gray-200 dark:border-slate-700 flex items-center gap-3">
             <div className="text-gray-400 dark:text-slate-500"><Mail size={20} /></div>
             <input 
@@ -67,6 +80,7 @@ export default function ResetPassword() {
             />
           </div>
 
+          {/* New Password Input */}
           <div className="bg-gray-50 dark:bg-slate-900 p-3 rounded-xl border border-gray-200 dark:border-slate-700 flex items-center gap-3">
             <div className="text-gray-400 dark:text-slate-500"><Lock size={20} /></div>
             <input 
@@ -82,11 +96,16 @@ export default function ResetPassword() {
             </button>
           </div>
 
+          {/* Action Button */}
           <button 
             disabled={loading}
-            className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 transition flex items-center justify-center gap-2"
+            className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 transition flex items-center justify-center gap-2 shadow-lg shadow-indigo-200 dark:shadow-none"
           >
-            {loading ? <div className="w-5 h-5 border-4 border-white/30 border-t-white rounded-full animate-spin" /> : "Update Password"}
+            {loading ? (
+              <div className="w-5 h-5 border-4 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              "Update Password"
+            )}
           </button>
         </form>
       </div>
