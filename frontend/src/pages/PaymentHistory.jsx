@@ -15,17 +15,21 @@ export default function PaymentHistory() {
   const [refreshing, setRefreshing] = useState(false);
   const [downloadingId, setDownloadingId] = useState(null);
 
-  // --- ✅ UPDATED LOGIC: DATE EXPIRY CHECK ---
-  // Compares travel date with today's local date
+  // --- ✅ FIXED: PRECISION DATE EXPIRY LOGIC ---
   const isExpired = (travelDate) => {
     if (!travelDate) return false;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Reset time to start of day for accurate comparison
-    
+
+    // Get current date and set to absolute 00:00:00 local time
+    const now = new Date();
+    const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+
+    // Parse travelDate "YYYY-MM-DD" and set to absolute 00:00:00 local time
+    // Splitting prevents timezone shift errors
     const [year, month, day] = travelDate.split('-').map(Number);
-    const tripDate = new Date(year, month - 1, day);
-    
-    return tripDate < today;
+    const tripMidnight = new Date(year, month - 1, day).getTime();
+
+    // It is expired if the trip day is strictly before today
+    return tripMidnight < todayMidnight;
   };
 
   const fetchBookings = async () => {
@@ -57,6 +61,12 @@ export default function PaymentHistory() {
   };
 
   const handleRetryPayment = async (booking) => {
+    // Final security check: Don't allow payment if the window was left open but date changed
+    if (isExpired(booking.travelDate)) {
+      alert("This booking has expired. You cannot pay for a past date.");
+      return;
+    }
+
     const user = JSON.parse(localStorage.getItem('user'));
     try {
       const { data: order } = await axios.post('https://entebus-api.onrender.com/api/payment/order', { 
@@ -214,7 +224,7 @@ export default function PaymentHistory() {
               {bookings.map((booking) => {
                 const isPaid = booking.status === 'Paid' || booking.status === 'Boarded';
                 
-                // ✅ UPDATED LOGIC: EXPIRY DETECTION
+                // ✅ UPDATED LOGIC: DEFINITIVE EXPIRY
                 const expired = booking.status === 'Pending' && isExpired(booking.travelDate);
                 const isDownloading = downloadingId === booking._id;
 
@@ -226,9 +236,9 @@ export default function PaymentHistory() {
                     animate={{ opacity: 1, scale: 1 }} 
                     className={`group relative overflow-hidden p-6 rounded-[2rem] border transition-all duration-300
                       ${isPaid 
-                        ? 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-xl hover:border-indigo-200 dark:hover:border-indigo-900' 
+                        ? 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-xl' 
                         : expired 
-                          ? 'bg-red-50/50 dark:bg-red-900/10 border-red-100 dark:border-red-900/30' 
+                          ? 'bg-red-50/50 dark:bg-red-900/10 border-red-200 dark:border-red-900/30 grayscale-[0.5]' 
                           : 'bg-amber-50/50 dark:bg-amber-900/10 border-amber-100 dark:border-amber-900/30'}`}
                   >
                     <div className="flex flex-col md:flex-row justify-between gap-6 relative z-10">
@@ -238,25 +248,26 @@ export default function PaymentHistory() {
                             isPaid 
                               ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300' 
                               : expired 
-                                ? 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300' 
+                                ? 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400' 
                                 : 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300'
                           }`}>
-                            {expired ? 'DATE EXPIRED' : booking.status}
+                            {/* --- ✅ CORRECTED UI TEXT --- */}
+                            {expired ? 'BOOKING EXPIRED' : booking.status}
                           </span>
                           <span className="text-xs text-gray-400 font-mono">#{booking._id.slice(-6).toUpperCase()}</span>
                         </div>
 
-                        <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white mb-4 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                        <h2 className={`text-2xl font-extrabold mb-4 transition-colors ${expired ? 'text-gray-400' : 'text-gray-900 dark:text-white'}`}>
                           {booking.busId?.name || 'Bus Unavailable'}
                         </h2>
 
                         <div className="flex flex-wrap gap-4 text-sm">
                           <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-700/50 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-300">
                             <MapPin size={16} className="text-indigo-500" />
-                            <span className="font-bold">{booking.busId?.from} <ChevronRight size={14} className="inline mx-1"/> {booking.busId?.to}</span>
+                            <span className="font-bold">{booking.busId?.from} → {booking.busId?.to}</span>
                           </div>
                           <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-700/50 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-300">
-                            <Calendar size={16} className={expired ? "text-red-500" : "text-rose-500"} />
+                            <Calendar size={16} className={expired ? "text-red-400" : "text-rose-500"} />
                             <span className="font-bold">{booking.travelDate}</span>
                           </div>
                           <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-700/50 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-300">
@@ -268,8 +279,8 @@ export default function PaymentHistory() {
 
                       <div className="flex flex-row md:flex-col justify-between items-center md:items-end border-t md:border-t-0 md:border-l border-gray-100 dark:border-gray-700 pt-4 md:pt-0 md:pl-6 min-w-[140px]">
                         <div className="text-center md:text-right">
-                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Fair Amount</p>
-                          <p className="text-3xl font-black text-indigo-600 dark:text-indigo-400">₹{booking.amount}</p>
+                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Amount</p>
+                          <p className={`text-3xl font-black ${expired ? 'text-gray-400' : 'text-indigo-600 dark:text-indigo-400'}`}>₹{booking.amount}</p>
                         </div>
 
                         <div className="flex flex-col items-end gap-3 mt-4">
@@ -288,18 +299,19 @@ export default function PaymentHistory() {
                               </button>
                             </>
                           ) : expired ? (
-                            // ✅ UI CHANGE: NO RETRY BUTTON IF EXPIRED
-                            <div className="bg-red-500 text-white px-4 py-1.5 rounded-full text-[10px] font-black flex items-center gap-1.5 shadow-lg shadow-red-200 dark:shadow-none">
-                              <AlertCircle size={14} /> BOOKING EXPIRED
+                            /* --- ✅ CORRECTED: REMOVED PAY NOW BUTTON IF EXPIRED --- */
+                            <div className="bg-gray-200 dark:bg-gray-700 text-gray-500 px-4 py-2 rounded-xl text-[10px] font-black flex items-center gap-1.5 border border-gray-300 dark:border-gray-600">
+                              <AlertCircle size={14} /> NO LONGER PAYABLE
                             </div>
                           ) : (
+                            /* --- ✅ PAY NOW BUTTON ONLY SHOWS FOR ACTIVE PENDING --- */
                             <>
                               <div className="bg-amber-500 text-white px-4 py-1.5 rounded-full text-[10px] font-black flex items-center gap-1.5">
                                 <AlertTriangle size={14} /> PENDING
                               </div>
                               <button 
                                 onClick={() => handleRetryPayment(booking)}
-                                className="bg-gray-900 dark:bg-indigo-600 text-white px-5 py-2.5 rounded-2xl text-xs font-black flex items-center gap-2 hover:bg-black transition-all active:scale-95 shadow-lg shadow-gray-200 dark:shadow-none"
+                                className="bg-gray-900 dark:bg-indigo-600 text-white px-5 py-2.5 rounded-2xl text-xs font-black flex items-center gap-2 hover:bg-black transition-all active:scale-95 shadow-lg shadow-gray-200"
                               >
                                 <RefreshCw size={14} /> PAY NOW
                               </button>

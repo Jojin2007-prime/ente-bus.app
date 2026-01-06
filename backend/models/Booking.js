@@ -21,24 +21,23 @@ const bookingSchema = new mongoose.Schema({
     type: String, 
     required: true 
   },
-  // ✅ IMPORTANT: The specific date the passenger is traveling
-  // Used by the frontend to check if the 'Retry' option should expire
+  // ✅ ESSENTIAL FOR EXPIRY LOGIC: The date of travel (e.g., "2026-01-05")
   travelDate: { 
-    type: String, // Stored as 'YYYY-MM-DD' for easy comparison
+    type: String, 
     required: true 
   },
-  // ✅ IMPORTANT: Current state of the booking
+  // ✅ LOGIC BARRIER: Controls if 'Pay Now' or 'Ticket PDF' shows
   status: { 
     type: String, 
     enum: ['Pending', 'Paid', 'Boarded', 'Cancelled'], 
     default: 'Pending' 
   },
-  // Financial details
+  // Financial details for Razorpay retry
   amount: { 
     type: Number, 
     required: true 
   },
-  // The timestamp of when this record was created
+  // Audit trail for when the booking was initiated
   createdAt: { 
     type: Date, 
     default: Date.now 
