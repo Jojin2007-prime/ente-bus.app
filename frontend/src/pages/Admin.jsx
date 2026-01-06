@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import { Html5Qrcode } from 'html5-qrcode';
 import { useNavigate, Link } from 'react-router-dom';
+import { useToast } from '../context/ToastContext'; // ✅ Added Toast Hook
 import {
   Shield, Plus, LogOut, Edit, Trash2,
   Users, ArrowRight, History, MessageSquareWarning,
@@ -11,9 +12,9 @@ import {
 
 export default function Admin() {
   const navigate = useNavigate();
+  const { showToast } = useToast(); // ✅ Initialize Toast
   const [activeTab, setActiveTab] = useState('dashboard');
   
-  // --- ALL ORIGINAL STATES ---
   const [bookings, setBookings] = useState([]);
   const [buses, setBuses] = useState([]);
   const [complaints, setComplaints] = useState([]);
@@ -38,7 +39,6 @@ export default function Admin() {
 
   const API_URL = "https://entebus-api.onrender.com";
 
-  // --- ALL LOGIC FUNCTIONS ---
   const playSuccessBeep = () => {
     try {
       const context = new (window.AudioContext || window.webkitAudioContext)();
@@ -99,10 +99,9 @@ export default function Admin() {
   };
 
   const startScanner = async () => {
-    if (!selectedCamera) return alert("Select a lens hardware.");
+    if (!selectedCamera) return showToast("Select camera hardware.", "info");
     setIsCameraActive(true); setScanError(''); setTicketData(null);
     
-    // Crucial for mobile/desktop toggle: Wait for DOM element
     setTimeout(async () => {
       try {
         const scanner = new Html5Qrcode("admin-reader");
@@ -114,7 +113,8 @@ export default function Admin() {
           () => {}
         );
       } catch (err) {
-        setScanError("Camera access failed. Check permissions.");
+        setScanError("Camera access failed.");
+        showToast("Camera access failed. Check permissions.", "error");
         setIsCameraActive(false);
       }
     }, 400);
@@ -151,13 +151,19 @@ export default function Admin() {
 
       if (travelDate.getTime() < today.getTime()) {
         setTicketStatus('expired');
+        showToast("This ticket has expired!", "error");
       } else if (travelDate.getTime() > today.getTime()) {
-        setTicketStatus('future');  
+        setTicketStatus('future'); 
+        showToast("Ticket is for a future date.", "info");
       } else {
-        setTicketStatus('valid');  
+        setTicketStatus('valid');
+        showToast("Ticket Verified!", "success");
       }
       setTicketData(ticket);
-    } catch (err) { setScanError("❌ Record not found in database."); }
+    } catch (err) { 
+      setScanError("❌ Record not found."); 
+      showToast("Record not found in database.", "error");
+    }
     finally { setScanLoading(false); }
   };
 
@@ -168,8 +174,10 @@ export default function Admin() {
       await axios.put(`${API_URL}/api/bookings/board/${ticketData._id}`);
       setTicketData(prev => ({ ...prev, status: 'Boarded' }));
       playSuccessBeep();
-      alert("Passenger Boarded Successfully! ✅");
-    } catch (err) { alert("Failed to update boarding status."); }
+      showToast("Passenger Boarded Successfully! ✅", "success");
+    } catch (err) { 
+      showToast("Failed to update boarding status.", "error"); 
+    }
     finally { setConfirmLoading(false); }
   };
 
@@ -179,14 +187,14 @@ export default function Admin() {
       if (isEditing) {
         await axios.put(`${API_URL}/api/buses/${editId}`, formData);
         setIsEditing(false); setEditId(null);
-        alert('Bus Details Updated! ✅');
+        showToast('Bus Details Updated! ✅', "success");
       } else {
         await axios.post(`${API_URL}/api/buses`, formData);
-        alert('New Bus Route Added! ✅');
+        showToast('New Bus Route Added! ✅', "success");
       }
       setFormData({ name: '', registrationNumber: '', from: '', to: '', departureTime: '', price: '', driverName: '', driverContact: '' });
       fetchBuses();
-    } catch (err) { alert('Error processing request'); }
+    } catch (err) { showToast('Error processing request', "error"); }
   };
 
   const handleEditClick = (bus) => {
@@ -200,7 +208,11 @@ export default function Admin() {
 
   const handleDeleteBus = async (id) => {
     if (window.confirm("Delete this bus permanently?")) {
-      try { await axios.delete(`${API_URL}/api/buses/${id}`); fetchBuses(); } catch (err) { alert("Error deleting bus"); }
+      try { 
+        await axios.delete(`${API_URL}/api/buses/${id}`); 
+        fetchBuses(); 
+        showToast("Bus deleted successfully.", "success");
+      } catch (err) { showToast("Error deleting bus", "error"); }
     }
   };
 
@@ -208,16 +220,27 @@ export default function Admin() {
     try {
       await axios.put(`${API_URL}/api/complaints/resolve/${id}`);
       fetchComplaints();
-      alert("Issue marked as Resolved ✅");
-    } catch (err) { alert("Error updating complaint"); }
+      showToast("Issue marked as Resolved ✅", "success");
+    } catch (err) { showToast("Error updating complaint", "error"); }
   };
 
+  // ✅ UPDATED: Nice Notifications for Manifest
   const handleFetchManifest = async () => {
-    if (!manifestBusId || !manifestDate) return alert("Select Bus and Date.");
+    if (!manifestBusId || !manifestDate) return showToast("Select Bus and Date.", "info");
     try {
       const res = await axios.get(`${API_URL}/api/admin/manifest?busId=${manifestBusId}&date=${manifestDate}`);
+      
+      if (res.data.length === 0) {
+        showToast("No bookings found for this trip", "info");
+        setManifestData([]);
+        return;
+      }
+
+      showToast(`Manifest loaded: ${res.data.length} passengers found`, "success");
       setManifestData(res.data);
-    } catch (err) { alert("Error fetching manifest data"); }
+    } catch (err) { 
+      showToast("Failed to load manifest. Check connection.", "error"); 
+    }
   };
 
   const handleLogout = () => { localStorage.removeItem('admin'); navigate('/'); };
@@ -281,10 +304,7 @@ export default function Admin() {
                 </Link>
               </div>
 
-              {/* Grid Layout for Windows (Form Left, List Right) */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-                
-                {/* Form Section */}
                 <div className="lg:col-span-4 bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border dark:border-slate-700">
                   <h3 className="text-lg font-bold mb-6 dark:text-white flex items-center gap-2">
                     {isEditing ? <Edit size={20} className="text-indigo-500" /> : <Plus size={20} className="text-green-500" />}
@@ -310,7 +330,6 @@ export default function Admin() {
                   </form>
                 </div>
 
-                {/* Fleet List Section */}
                 <div className="lg:col-span-8 bg-white dark:bg-slate-800 rounded-3xl border dark:border-slate-700 p-6 shadow-sm overflow-hidden">
                     <h3 className="text-lg font-bold mb-6 dark:text-white">Active Fleet Management</h3>
                     <div className="overflow-x-auto">
@@ -391,7 +410,7 @@ export default function Admin() {
           </div>
         )}
 
-        {/* --- SCANNER TAB (CENTRIC FOR BOTH MOBILE/WINDOWS) --- */}
+        {/* --- SCANNER TAB --- */}
         {activeTab === 'scanner' && (
           <div className="animate-in slide-in-from-bottom-4 duration-500 max-w-2xl mx-auto">
             {!isCameraActive && !ticketData && !scanLoading && (
@@ -450,7 +469,7 @@ export default function Admin() {
           </div>
         )}
 
-        {/* --- COMPLAINTS TAB (WINDOWS GRID) --- */}
+        {/* --- COMPLAINTS TAB --- */}
         {activeTab === 'complaints' && (
           <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
             <h3 className="text-xl font-black dark:text-white uppercase italic tracking-tighter px-1">Support Dashboard</h3>
