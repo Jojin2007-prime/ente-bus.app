@@ -15,7 +15,7 @@ export default function PaymentHistory() {
   const [refreshing, setRefreshing] = useState(false);
   const [downloadingId, setDownloadingId] = useState(null);
 
-  // --- ✅ FIXED: PRECISION DATE EXPIRY LOGIC ---
+  // --- ✅ PRECISION DATE EXPIRY LOGIC ---
   const isExpired = (travelDate) => {
     if (!travelDate) return false;
 
@@ -24,7 +24,7 @@ export default function PaymentHistory() {
     const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
 
     // Parse travelDate "YYYY-MM-DD" and set to absolute 00:00:00 local time
-    // Splitting prevents timezone shift errors
+    // Manual splitting avoids timezone shift errors common in MERN apps
     const [year, month, day] = travelDate.split('-').map(Number);
     const tripMidnight = new Date(year, month - 1, day).getTime();
 
@@ -60,13 +60,8 @@ export default function PaymentHistory() {
     return `${hours12}:${minutes} ${period}`;
   };
 
+  // --- ✅ REMOVED ALERT BOX LOGIC ---
   const handleRetryPayment = async (booking) => {
-    // Final security check: Don't allow payment if the window was left open but date changed
-    if (isExpired(booking.travelDate)) {
-      alert("This booking has expired. You cannot pay for a past date.");
-      return;
-    }
-
     const user = JSON.parse(localStorage.getItem('user'));
     try {
       const { data: order } = await axios.post('https://entebus-api.onrender.com/api/payment/order', { 
@@ -90,7 +85,7 @@ export default function PaymentHistory() {
             });
             fetchBookings();
           } catch (error) {
-            alert("Verification Failed. Please contact support.");
+            console.error("Verification Failed");
           }
         },
         prefill: { name: user.name, email: user.email },
@@ -100,7 +95,7 @@ export default function PaymentHistory() {
       const rzp = new window.Razorpay(options);
       rzp.open();
     } catch (err) { 
-      alert("Could not initiate payment."); 
+      console.error("Could not initiate payment."); 
     }
   };
 
@@ -180,7 +175,6 @@ export default function PaymentHistory() {
       doc.save(`EnteBus_Ticket_${booking._id.slice(-6)}.pdf`);
     } catch (err) {
       console.error("PDF Error:", err);
-      alert("Error generating PDF ticket.");
     } finally {
       setDownloadingId(null);
     }
@@ -210,21 +204,13 @@ export default function PaymentHistory() {
               <div key={i} className="h-40 w-full bg-gray-200 dark:bg-gray-800 animate-pulse rounded-3xl" />
             ))}
           </div>
-        ) : bookings.length === 0 ? (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-20 bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-xl border border-gray-100 dark:border-gray-700">
-            <div className="w-20 h-20 bg-indigo-50 dark:bg-indigo-900/20 rounded-full flex items-center justify-center mx-auto mb-6 text-indigo-500">
-              <CreditCard size={40} />
-            </div>
-            <h3 className="text-xl font-bold text-gray-800 dark:text-white">No Bookings Yet</h3>
-            <p className="text-gray-500 dark:text-gray-400 mt-2">Your future trips will appear here.</p>
-          </motion.div>
         ) : (
           <div className="space-y-6">
             <AnimatePresence mode="popLayout">
               {bookings.map((booking) => {
                 const isPaid = booking.status === 'Paid' || booking.status === 'Boarded';
                 
-                // ✅ UPDATED LOGIC: DEFINITIVE EXPIRY
+                // ✅ DEFINITIVE EXPIRY DETECTION
                 const expired = booking.status === 'Pending' && isExpired(booking.travelDate);
                 const isDownloading = downloadingId === booking._id;
 
@@ -238,7 +224,7 @@ export default function PaymentHistory() {
                       ${isPaid 
                         ? 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-xl' 
                         : expired 
-                          ? 'bg-red-50/50 dark:bg-red-900/10 border-red-200 dark:border-red-900/30 grayscale-[0.5]' 
+                          ? 'bg-red-50/50 dark:bg-red-900/10 border-red-200 dark:border-red-900/30' 
                           : 'bg-amber-50/50 dark:bg-amber-900/10 border-amber-100 dark:border-amber-900/30'}`}
                   >
                     <div className="flex flex-col md:flex-row justify-between gap-6 relative z-10">
@@ -251,7 +237,6 @@ export default function PaymentHistory() {
                                 ? 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-400' 
                                 : 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300'
                           }`}>
-                            {/* --- ✅ CORRECTED UI TEXT --- */}
                             {expired ? 'BOOKING EXPIRED' : booking.status}
                           </span>
                           <span className="text-xs text-gray-400 font-mono">#{booking._id.slice(-6).toUpperCase()}</span>
@@ -299,10 +284,14 @@ export default function PaymentHistory() {
                               </button>
                             </>
                           ) : expired ? (
-                            /* --- ✅ CORRECTED: REMOVED PAY NOW BUTTON IF EXPIRED --- */
-                            <div className="bg-gray-200 dark:bg-gray-700 text-gray-500 px-4 py-2 rounded-xl text-[10px] font-black flex items-center gap-1.5 border border-gray-300 dark:border-gray-600">
+                            /* --- ✅ ANIMATED EXPIRY MESSAGE --- */
+                            <motion.div 
+                              initial={{ opacity: 0, scale: 0.8 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              className="bg-gray-200 dark:bg-gray-700 text-gray-500 px-4 py-2 rounded-xl text-[10px] font-black flex items-center gap-1.5 border border-gray-300 dark:border-gray-600"
+                            >
                               <AlertCircle size={14} /> NO LONGER PAYABLE
-                            </div>
+                            </motion.div>
                           ) : (
                             /* --- ✅ PAY NOW BUTTON ONLY SHOWS FOR ACTIVE PENDING --- */
                             <>
