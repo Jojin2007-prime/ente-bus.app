@@ -65,7 +65,7 @@ const bookingSchema = new mongoose.Schema({
   paymentId: String,
   orderId: String,
   amount: Number,
-  status: { type: String, default: 'Pending' } // Statuses: Pending, Paid, Boarded, Expired, Refund Pending
+  status: { type: String, default: 'Pending' } // Statuses: Pending, Paid, Boarded, Expired
 });
 const Booking = mongoose.model('Booking', bookingSchema);
 
@@ -110,23 +110,33 @@ app.post('/api/auth/login', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// --- ✅ UPDATED: PASSWORD RESET ROUTE ---
 app.post('/api/auth/reset-password', async (req, res) => {
   try {
     const { email, newPassword } = req.body;
+
     if (!email || !newPassword) {
       return res.status(400).json({ message: 'Email and new password are required' });
     }
+
+    // Find user using case-insensitive email
     const user = await User.findOne({ email: email.toLowerCase() });
+    
+    // This provides the "Email is entered but not found" logic
     if (!user) {
       return res.status(404).json({ message: 'No account exists with this email address' });
     }
+
     if (newPassword.length < 8) {
       return res.status(400).json({ message: 'New password must be at least 8 characters' });
     }
+
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(newPassword, salt);
+
     user.password = hashedPassword;
     await user.save();
+
     res.json({ message: 'Success! Your password has been updated.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -234,6 +244,7 @@ app.post('/api/bookings/verify', async (req, res) => {
       const booking = await Booking.findById(bookingId);
       if (!booking) return res.status(404).json({ message: "Booking not found" });
 
+      // Final check for expiry before confirming payment
       const today = new Date().toISOString().split('T')[0];
       if (booking.travelDate < today) {
         booking.status = 'Expired';
@@ -258,49 +269,15 @@ app.post('/api/bookings/verify', async (req, res) => {
 
 app.put('/api/bookings/board/:id', async (req, res) => {
   try {
-    const booking = await Booking.findById(req.params.id);
-    if (!booking) return res.status(404).json({ message: "Booking not found" });
-
-    if (booking.status !== 'Paid') {
-      return res.status(400).json({ 
-        message: `Cannot board. Current ticket status is: ${booking.status}` 
-      });
-    }
-
-    booking.status = 'Boarded';
-    await booking.save();
-
-    res.json({ 
-      message: "Passenger Boarded Successfully", 
-      customerName: booking.customerName,
-      status: booking.status 
-    });
+      const booking = await Booking.findByIdAndUpdate(
+          req.params.id, 
+          { status: 'Boarded' }, 
+          { new: true }
+      );
+      if (!booking) return res.status(404).json({ message: "Booking not found" });
+      res.json({ message: "Passenger Boarded Successfully", booking });
   } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.post('/api/bookings/request-refund', async (req, res) => {
-  try {
-    const { bookingId } = req.body;
-    const booking = await Booking.findById(bookingId);
-    if (!booking) return res.status(404).json({ message: "Booking not found" });
-
-    if (booking.status !== 'Paid') {
-      return res.status(400).json({ message: "Only unboarded 'Paid' tickets are eligible for refund." });
-    }
-
-    const today = new Date().toISOString().split('T')[0];
-    if (booking.travelDate >= today) {
-       return res.status(400).json({ message: "Refunds can only be requested after the travel date has passed." });
-    }
-
-    booking.status = 'Refund Pending';
-    await booking.save();
-
-    res.json({ success: true, message: "Refund request submitted successfully." });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+      res.status(500).json({ error: err.message });
   }
 });
 
@@ -315,30 +292,23 @@ app.get('/api/bookings/occupied', async (req, res) => {
 });
 
 // 5. Admin Routes
-
-// ✅ Corrected Manifest Route in server.js
 app.get('/api/admin/manifest', async (req, res) => {
-  const { busId, date } = req.query; // Extracts from ?busId=...&date=...
+  const { busId, date } = req.query;
   try {
-    const query = { 
-      busId: busId, 
-      travelDate: date, // MUST match format "YYYY-MM-DD"
-      status: { $in: ['Paid', 'Boarded'] } 
-    };
+    const query = { busId, status: { $in: ['Paid', 'Boarded'] } };
+    if (date) query.travelDate = date;
 
-    const bookings = await Booking.find(query).populate('busId');
-    console.log(`Found ${bookings.length} passengers for bus ${busId} on ${date}`); // Check terminal logs!
+    const bookings = await Booking.find(query).populate('busId').sort({ travelDate: -1 });
     res.json(bookings);
-  } catch (err) { 
-    res.status(500).json({ error: err.message }); 
-  }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.get('/api/admin/history', async (req, res) => {
   try {
     const today = new Date().toISOString().split('T')[0];
+
     const history = await Booking.aggregate([
-      { $match: { status: { $in: ['Paid', 'Boarded', 'Refund Pending'] }, travelDate: { $lt: today } }},
+      { $match: { status: { $in: ['Paid', 'Boarded'] }, travelDate: { $lt: today } }},
       { $group: {
           _id: { busId: "$busId", date: "$travelDate" },
           totalRevenue: { $sum: "$amount" },
@@ -382,6 +352,7 @@ app.get('/api/bookings/user/:email', async (req, res) => {
     const today = new Date().toISOString().split('T')[0];
     const bookings = await Booking.find({ customerEmail: req.params.email }).populate('busId').sort({_id:-1});
     
+    // Dynamically mark pending past bookings as expired for the history view
     const updatedBookings = bookings.map(b => {
       const obj = b.toObject();
       if (obj.status === 'Pending' && obj.travelDate < today) {
@@ -394,5 +365,6 @@ app.get('/api/bookings/user/:email', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Handle Port 10000 for Render
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
