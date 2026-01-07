@@ -329,13 +329,19 @@ app.get('/api/bookings/occupied', async (req, res) => {
 });
 
 // 5. Admin Routes
+
+// ✅ Corrected Manifest Logic
 app.get('/api/admin/manifest', async (req, res) => {
   const { busId, date } = req.query;
   try {
-    const query = { busId, status: { $in: ['Paid', 'Boarded'] } };
-    if (date) query.travelDate = date;
+    // Force the query to match both Bus and the specific Travel Date 
+    const query = { 
+      busId: busId, 
+      travelDate: date, 
+      status: { $in: ['Paid', 'Boarded'] } 
+    };
 
-    const bookings = await Booking.find(query).populate('busId').sort({ travelDate: -1 });
+    const bookings = await Booking.find(query).populate('busId').sort({ seatNumbers: 1 });
     res.json(bookings);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
