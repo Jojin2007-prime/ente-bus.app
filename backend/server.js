@@ -65,7 +65,7 @@ const bookingSchema = new mongoose.Schema({
   paymentId: String,     
   orderId: String,       
   amount: Number,
-  status: { type: String, default: 'Pending' } // Pending, Paid, Boarded, Expired
+  status: { type: String, default: 'Pending' } // Statuses: Pending, Paid, Boarded, Expired
 });
 const Booking = mongoose.model('Booking', bookingSchema);
 
@@ -220,22 +220,39 @@ app.put('/api/bookings/board/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 4. Admin Manifest & Scanner Routes
-app.get('/api/admin/manifest', async (req, res) => {
+// 4. Occupied Seats (Date Specific)
+app.get('/api/bookings/occupied', async (req, res) => {
   const { busId, date } = req.query;
   try {
-    const query = { busId, travelDate: date, status: { $in: ['Paid', 'Boarded', 'Pending'] } };
-    const bookings = await Booking.find(query).populate('busId').sort({ travelDate: -1 });
-    res.json(bookings);
+    const bookings = await Booking.find({ busId, travelDate: date, status: { $in: ['Paid', 'Boarded'] } });
+    const occupiedSeats = bookings.flatMap(b => b.seatNumbers);
+    res.json(occupiedSeats);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// 5. Admin & Scanner Fixes
+
+// ✅ FIX: Verify Route populates busId for Scanner and Ticket Details
 app.get('/api/verify/:id', async (req, res) => {
   try {
     const booking = await Booking.findById(req.params.id).populate('busId');
     if(!booking) return res.status(404).json({message: "Not Found"});
     res.json(booking);
   } catch (err) { res.status(500).json({ message: 'Invalid Ticket' }); }
+});
+
+// ✅ FIX: Manifest Route strictly filters by Bus and Date
+app.get('/api/admin/manifest', async (req, res) => {
+  const { busId, date } = req.query;
+  try {
+    const query = { 
+      busId, 
+      travelDate: date, 
+      status: { $in: ['Paid', 'Boarded', 'Pending'] } 
+    };
+    const bookings = await Booking.find(query).populate('busId').sort({ travelDate: -1 });
+    res.json(bookings);
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.get('/api/admin/history', async (req, res) => {
@@ -269,7 +286,7 @@ app.get('/api/admin/bookings', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 5. User History
+// 6. User History
 app.get('/api/bookings/user/:email', async (req, res) => {
   try {
     const today = new Date().toISOString().split('T')[0];

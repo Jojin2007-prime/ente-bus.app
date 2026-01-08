@@ -40,6 +40,7 @@ export default function Admin() {
   // ✅ Consistent Backend URL
   const API_URL = "https://entebus-api.onrender.com";
 
+  // Audio feedback for scanner
   const playSuccessBeep = () => {
     try {
       const context = new (window.AudioContext || window.webkitAudioContext)();
@@ -146,19 +147,21 @@ export default function Admin() {
       const res = await axios.get(`${API_URL}/api/verify/${id}`);
       const ticket = res.data;
       
+      // ✅ UPDATED VERIFICATION LOGIC
       const todayStr = new Date().toISOString().split('T')[0];
       const ticketDateStr = ticket.travelDate;
 
       if (ticketDateStr < todayStr) {
-        setTicketStatus('expired');
+        setTicketStatus('expired'); // Orange UI
         showToast("This ticket has expired!", "error");
       } else if (ticketDateStr > todayStr) {
-        setTicketStatus('future'); 
-        showToast("Ticket is for a future date.", "info");
+        setTicketStatus('future'); // Blue UI
+        showToast("Trip is upcoming (Future Date)", "info");
       } else {
-        setTicketStatus('valid');
-        showToast("Ticket Verified!", "success");
+        setTicketStatus('valid'); // Green UI
+        showToast("Ticket Verified for Today!", "success");
       }
+      
       setTicketData(ticket);
     } catch (err) { 
       setScanError("❌ Record not found."); 
@@ -227,13 +230,12 @@ export default function Admin() {
     } catch (err) { showToast("Error updating complaint", "error"); }
   };
 
-  // ✅ FIXED LOGIC: Clear data before fetch and ensure params match backend
   const handleFetchManifest = async () => {
     if (!manifestBusId || !manifestDate) {
       return showToast("Select Bus and Date first.", "info");
     }
     
-    setManifestData([]); // Reset UI list while loading
+    setManifestData([]); 
 
     try {
       const res = await axios.get(`${API_URL}/api/admin/manifest`, {
@@ -457,7 +459,7 @@ export default function Admin() {
               <div className="bg-white dark:bg-slate-800 rounded-[3rem] overflow-hidden shadow-2xl border dark:border-slate-700 animate-in zoom-in max-w-md mx-auto">
                 <div className={`${ticketStatus === 'valid' ? 'bg-green-600' : ticketStatus === 'future' ? 'bg-blue-600' : 'bg-orange-500'} p-6 text-white text-center font-black uppercase text-sm flex items-center justify-center gap-3 italic`}>
                   {ticketStatus === 'valid' ? <CheckCircle size={24} /> : ticketStatus === 'future' ? <Calendar size={24} /> : <AlertTriangle size={24} />}
-                  {ticketStatus === 'valid' ? 'Access Permitted' : ticketStatus === 'future' ? 'Future Trip' : 'Ticket Expired'}
+                  {ticketStatus === 'valid' ? 'Access Permitted' : ticketStatus === 'future' ? 'Trip is upcoming (Future Date)' : 'This ticket has expired!'}
                 </div>
                 <div className="p-8 space-y-6">
                   <div className="flex items-center gap-4">
