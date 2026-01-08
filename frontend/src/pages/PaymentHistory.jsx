@@ -15,14 +15,14 @@ export default function PaymentHistory() {
   const [refreshing, setRefreshing] = useState(false);
   const [downloadingId, setDownloadingId] = useState(null);
 
-  // ✅ Consistent Backend URL
+  // ✅ Consistent Backend URL pointing to your Render deployment
   const API_URL = "https://entebus-api.onrender.com";
 
   // --- ✅ Helper: Precision Date Expiry Logic ---
+  // Normalizes time to midnight to prevent tickets from expiring a few hours too early
   const isExpired = (travelDate) => {
     if (!travelDate) return false;
     const now = new Date();
-    // Normalize to midnight local time to avoid premature expiry
     const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     const [year, month, day] = travelDate.split('-').map(Number);
     const tripMidnight = new Date(year, month - 1, day).getTime();
@@ -59,6 +59,14 @@ export default function PaymentHistory() {
   useEffect(() => {
     fetchBookings();
   }, []);
+
+  const formatTime = (time24) => {
+    if (!time24) return "";
+    const [hours, minutes] = time24.split(':');
+    const period = +hours >= 12 ? 'PM' : 'AM';
+    const hours12 = (+hours % 12) || 12;
+    return `${hours12}:${minutes} ${period}`;
+  };
 
   // --- ✅ API Handler: Razorpay Retry ---
   const handleRetryPayment = async (booking) => {
@@ -112,7 +120,6 @@ export default function PaymentHistory() {
         color: { dark: '#1e1b4b', light: '#ffffff' }
       });
 
-      // PDF Styling
       doc.setFillColor(79, 70, 229); 
       doc.rect(0, 0, 210, 45, 'F');
       doc.setTextColor(255, 255, 255);
@@ -134,14 +141,14 @@ export default function PaymentHistory() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-500 p-4 md:p-10 pb-28">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-500 p-4 md:p-10 pb-28 font-sans">
       <div className="max-w-4xl mx-auto">
         <header className="flex justify-between items-end mb-10">
           <div>
-            <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter flex items-center gap-3 italic uppercase">
+            <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tighter flex items-center gap-3 uppercase italic">
               My Journey <Ticket className="text-indigo-500" size={32} />
             </h1>
-            <p className="text-gray-500 dark:text-gray-400 mt-1 font-medium">History of your bus bookings</p>
+            <p className="text-gray-500 dark:text-gray-400 mt-1 font-bold">History of your bus bookings</p>
           </div>
           
           <div className="flex gap-3">
@@ -185,7 +192,7 @@ export default function PaymentHistory() {
                       ${isPaid 
                         ? 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-xl' 
                         : expired 
-                          ? 'bg-red-50/50 dark:bg-red-900/10 border-red-200 dark:border-red-900/30 grayscale' 
+                          ? 'bg-red-50/50 dark:bg-red-900/10 border-red-200 dark:border-red-900/30' 
                           : 'bg-amber-50/50 dark:bg-amber-900/10 border-amber-100 dark:border-amber-900/30'}`}
                   >
                     <div className="flex flex-col md:flex-row justify-between gap-6 relative z-10">
@@ -207,11 +214,11 @@ export default function PaymentHistory() {
                         </h2>
 
                         <div className="flex flex-wrap gap-4 text-sm font-bold">
-                          <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-700/50 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-300">
+                          <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-700/50 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-300 uppercase">
                             <MapPin size={16} className="text-indigo-500" />
                             {booking.busId?.from} → {booking.busId?.to}
                           </div>
-                          <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-700/50 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-300">
+                          <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-700/50 px-3 py-2 rounded-xl text-gray-700 dark:text-gray-300 uppercase">
                             <Calendar size={16} className={expired ? "text-red-400" : "text-rose-500"} />
                             {booking.travelDate}
                           </div>
@@ -264,11 +271,6 @@ export default function PaymentHistory() {
                 );
               })}
             </AnimatePresence>
-            {bookings.length === 0 && !loading && (
-              <div className="text-center py-20 opacity-30 font-black uppercase italic text-gray-400">
-                No Journey History Found
-              </div>
-            )}
           </div>
         )}
       </div>
