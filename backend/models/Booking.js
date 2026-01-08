@@ -21,23 +21,30 @@ const bookingSchema = new mongoose.Schema({
     type: String, 
     required: true 
   },
-  // ✅ ESSENTIAL FOR EXPIRY LOGIC: The date of travel (e.g., "2026-01-05")
+  // Added to prevent data loss when server saves phone numbers
+  customerPhone: { 
+    type: String 
+  },
+  // Date of travel (String format: YYYY-MM-DD)
   travelDate: { 
     type: String, 
     required: true 
   },
-  // ✅ LOGIC BARRIER: Controls if 'Pay Now' or 'Ticket PDF' shows
+  // Statuses: Pending, Paid, Boarded, Expired, Cancelled
   status: { 
     type: String, 
-    enum: ['Pending', 'Paid', 'Boarded', 'Cancelled'], 
+    enum: ['Pending', 'Paid', 'Boarded', 'Cancelled', 'Expired'], 
     default: 'Pending' 
   },
-  // Financial details for Razorpay retry
+  // Financial details
   amount: { 
     type: Number, 
     required: true 
   },
-  // Audit trail for when the booking was initiated
+  // Razorpay IDs
+  paymentId: { type: String },
+  orderId: { type: String },
+  // Audit trail
   createdAt: { 
     type: Date, 
     default: Date.now 

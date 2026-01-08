@@ -37,9 +37,9 @@ export default function Admin() {
   const [isEditing, setIsEditing] = useState(false);
   const [editId, setEditId] = useState(null);
 
+  // ✅ Pointing to your live Render Backend
   const API_URL = "https://entebus-api.onrender.com";
 
-  // Audio feedback for scanner
   const playSuccessBeep = () => {
     try {
       const context = new (window.AudioContext || window.webkitAudioContext)();
@@ -71,21 +71,21 @@ export default function Admin() {
     try {
       const res = await axios.get(`${API_URL}/api/admin/bookings`);
       setBookings(res.data);
-    } catch (err) { }
+    } catch (err) { console.error(err); }
   };
 
   const fetchBuses = async () => {
     try {
       const res = await axios.get(`${API_URL}/api/buses`);
       setBuses(res.data);
-    } catch (err) { }
+    } catch (err) { console.error(err); }
   };
 
   const fetchComplaints = async () => {
     try {
       const res = await axios.get(`${API_URL}/api/complaints/all`);
       setComplaints(res.data);
-    } catch (err) { }
+    } catch (err) { console.error(err); }
   };
 
   const initHardware = async () => {
@@ -96,7 +96,7 @@ export default function Admin() {
         const backCam = devices.find(d => d.label.toLowerCase().includes('back')) || devices[devices.length - 1];
         setSelectedCamera(backCam.id);
       }
-    } catch (err) { }
+    } catch (err) { console.error(err); }
   };
 
   const startScanner = async () => {
@@ -145,15 +145,15 @@ export default function Admin() {
     try {
       const res = await axios.get(`${API_URL}/api/verify/${id}`);
       const ticket = res.data;
-      const travelDate = new Date(ticket.travelDate);
-      const today = new Date();
-      travelDate.setHours(0, 0, 0, 0);
-      today.setHours(0, 0, 0, 0);
+      
+      // ✅ Improved Date Logic: Comparing strings to avoid timezone shifts
+      const todayStr = new Date().toISOString().split('T')[0];
+      const ticketDateStr = ticket.travelDate;
 
-      if (travelDate.getTime() < today.getTime()) {
+      if (ticketDateStr < todayStr) {
         setTicketStatus('expired');
         showToast("This ticket has expired!", "error");
-      } else if (travelDate.getTime() > today.getTime()) {
+      } else if (ticketDateStr > todayStr) {
         setTicketStatus('future'); 
         showToast("Ticket is for a future date.", "info");
       } else {
@@ -169,7 +169,7 @@ export default function Admin() {
   };
 
   const confirmBoarding = async () => {
-    if (!ticketData || ticketStatus !== 'valid') return;
+    if (!ticketData || (ticketStatus !== 'valid' && ticketStatus !== 'future')) return;
     setConfirmLoading(true);
     try {
       await axios.put(`${API_URL}/api/bookings/board/${ticketData._id}`);
@@ -228,7 +228,7 @@ export default function Admin() {
     } catch (err) { showToast("Error updating complaint", "error"); }
   };
 
-  // ✅ UPDATED: Manifest Logic with Params and Debugging
+  // ✅ UPDATED: Manifest Logic now syncs with updated server filter
   const handleFetchManifest = async () => {
     if (!manifestBusId || !manifestDate) {
       return showToast("Select Bus and Date first.", "info");
@@ -237,12 +237,11 @@ export default function Admin() {
       const res = await axios.get(`${API_URL}/api/admin/manifest`, {
         params: { busId: manifestBusId, date: manifestDate }
       });
-      console.log("Data from Server:", res.data); // ✅ Check this in F12 Console
       
       if (res.data.length === 0) {
-        showToast("No bookings found for this trip", "info");
+        showToast("No passengers found for this trip", "info");
       } else {
-        showToast(`Manifest loaded: ${res.data.length} passengers found`, "success");
+        showToast(`Manifest loaded: ${res.data.length} bookings found`, "success");
       }
       setManifestData(res.data);
     } catch (err) {
@@ -260,6 +259,7 @@ export default function Admin() {
     return `${hours12}:${minutes} ${period}`;
   };
 
+  // ✅ Logic Fix: Ensure phone displays correctly based on updated schema
   const processedManifest = manifestData.flatMap(booking =>
     booking.seatNumbers.map(seat => ({
       seat,
@@ -271,10 +271,10 @@ export default function Admin() {
   ).sort((a, b) => a.seat - b.seat);
 
   return (
-    <div className="bg-gray-50 dark:bg-slate-900 min-h-screen transition-colors duration-300 pb-20 md:pb-10">
+    <div className="bg-gray-50 dark:bg-slate-900 min-h-screen transition-colors duration-300 pb-20 md:pb-10 font-sans">
       <div className="max-w-7xl mx-auto p-4 md:p-10">
         
-        {/* --- RESPONSIVE HEADER --- */}
+        {/* --- HEADER --- */}
         <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-6">
           <h1 className="text-2xl md:text-3xl font-black dark:text-white italic uppercase flex items-center gap-2">
             <Shield className="text-red-600" size={28}/> EnteBus Admin
@@ -382,12 +382,7 @@ export default function Admin() {
                   <input type="date" className="w-full p-4 border dark:border-slate-700 rounded-xl bg-gray-50 dark:bg-slate-900 dark:text-white font-bold text-sm" value={manifestDate} onChange={(e) => setManifestDate(e.target.value)} />
                 </div>
                 <div className="flex items-end">
-                  <button 
-                    onClick={handleFetchManifest} 
-                    className="w-full bg-indigo-600 text-white py-4 rounded-xl font-bold uppercase text-xs italic tracking-widest shadow-lg active:scale-95 transition-all"
-                  >
-                    Generate Manifest
-                  </button>
+                  <button onClick={handleFetchManifest} className="w-full bg-indigo-600 text-white py-4 rounded-xl font-bold uppercase text-xs italic tracking-widest shadow-lg active:scale-95 transition-all">Generate Manifest</button>
                 </div>
             </div>
             
@@ -477,7 +472,7 @@ export default function Admin() {
                   {ticketData.status === 'Boarded' ? (
                       <div className="bg-green-100 text-green-700 p-5 rounded-2xl text-center font-black border border-green-200 flex items-center justify-center gap-2 uppercase text-[10px] italic shadow-inner"><UserCheck size={18}/> Already Boarded</div>
                   ) : (
-                      <button onClick={confirmBoarding} disabled={confirmLoading || ticketStatus !== 'valid'} className={`w-full py-5 rounded-2xl font-black text-lg shadow-xl uppercase italic transition-all ${ticketStatus === 'valid' ? 'bg-green-600 text-white active:scale-95' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>
+                      <button onClick={confirmBoarding} disabled={confirmLoading || (ticketStatus !== 'valid' && ticketStatus !== 'future')} className={`w-full py-5 rounded-2xl font-black text-lg shadow-xl uppercase italic transition-all ${(ticketStatus === 'valid' || ticketStatus === 'future') ? 'bg-green-600 text-white active:scale-95' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}>
                         {confirmLoading ? <Loader className="animate-spin" /> : <UserCheck />} Confirm Entry
                       </button>
                   )}
@@ -519,7 +514,7 @@ export default function Admin() {
       {/* MOBILE LOGOUT FOOTER */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 p-4 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md border-t dark:border-slate-700 flex justify-center z-50">
         <button onClick={handleLogout} className="text-red-600 font-black uppercase text-[11px] tracking-widest flex items-center gap-2">
-            <LogOut size={14}/> Exit Admin Portal
+           <LogOut size={14}/> Exit Admin Portal
         </button>
       </div>
 
