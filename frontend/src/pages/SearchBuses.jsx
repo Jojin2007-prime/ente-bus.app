@@ -1,8 +1,35 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { Search, MapPin, Navigation, Loader2, Bus } from 'lucide-react';
+import { Search, MapPin, Navigation, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+
+// ✅ ADDED YOUR CUSTOM BUS LOGO COMPONENT
+const BusLogo = () => {
+  return (
+    <svg 
+      width="31.87" 
+      height="28.4" 
+      viewBox="0 0 100 80" 
+      xmlns="http://www.w3.org/2000/svg"
+      className="overflow-visible"
+    >
+      <defs>
+        <linearGradient id="busGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" style={{ stopColor: '#1e3a8a', stopOpacity: 1 }} />
+          <stop offset="100%" style={{ stopColor: '#9333ea', stopOpacity: 1 }} />
+        </linearGradient>
+      </defs>
+      <path d="M -10 75 Q 50 55 110 80" fill="none" stroke="#1f2937" strokeWidth="6" strokeLinecap="round" />
+      <path d="M -10 75 Q 50 55 110 80" fill="none" stroke="#fbbf24" strokeWidth="2" strokeLinecap="round" strokeDasharray="10,5" />
+      <path d="M 10 30 L 80 20 Q 95 18 95 40 L 95 55 Q 95 65 85 65 L 15 65 Q 5 65 5 55 L 5 40 Q 5 30 10 30 Z" fill="url(#busGradient)" stroke="white" strokeWidth="1" />
+      <path d="M 15 35 L 50 30 L 50 45 L 15 48 Z" fill="#e0f2fe" opacity="0.8" />
+      <path d="M 55 29 L 85 26 Q 90 26 90 40 L 90 45 L 55 45 Z" fill="#e0f2fe" opacity="0.8" />
+      <circle cx="25" cy="65" r="6" fill="#1f2937" stroke="gray" strokeWidth="1" />
+      <circle cx="75" cy="65" r="6" fill="#1f2937" stroke="gray" strokeWidth="1" />
+    </svg>
+  );
+};
 
 export default function SearchBuses() {
   const [search, setSearch] = useState({ from: '', to: '', date: '' });
@@ -131,7 +158,10 @@ export default function SearchBuses() {
 
         {/* RIGHT SECTION (BLUE BOX) */}
         <div className="w-full md:w-2/5 bg-indigo-950 p-10 md:p-12 text-white flex flex-col justify-center border-t md:border-t-0 md:border-l border-white/5">
-          <Bus size={36} className="mb-4 md:mb-6 opacity-80" />
+          {/* ✅ REPLACED ICON WITH YOUR NEW BUS LOGO COMPONENT */}
+          <div className="mb-4 md:mb-6">
+            <BusLogo />
+          </div>
           <h3 className="text-2xl md:text-3xl font-bold leading-snug">
             Smart <br className="hidden md:block" /> Travel Tool
           </h3>
@@ -169,7 +199,7 @@ function InputBox({ icon, placeholder, value, onChange, suggestions, onSelect })
               <li
                 key={s}
                 onClick={() => onSelect(s)}
-                className="px-5 py-3 cursor-pointer hover:bg-indigo-600 hover:text-white transition font-medium"
+                className="px-5 py-3 cursor-pointer hover:bg-indigo-600 hover:text-white transition font-medium text-slate-700 dark:text-slate-300"
               >
                 {s}
               </li>
