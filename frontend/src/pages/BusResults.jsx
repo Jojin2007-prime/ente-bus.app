@@ -9,8 +9,25 @@ import {
   Loader,
   ChevronRight,
   AlertCircle,
+  MapPin,
+  Ticket,
+  Shield,
+  ArrowRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+
+const CalendarClock = ({ size, className }) => (
+  <svg 
+    width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}
+  >
+    <path d="M21 7.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3.5" />
+    <path d="M16 2v4" />
+    <path d="M8 2v4" />
+    <path d="M3 10h5" />
+    <path d="M17.5 17.5 16 16.25V14" />
+    <circle cx="16" cy="16" r="6" />
+  </svg>
+);
 
 export default function BusResults() {
   const [buses, setBuses] = useState([]);
@@ -19,6 +36,8 @@ export default function BusResults() {
 
   const location = useLocation();
   const navigate = useNavigate();
+
+  const API_URL = "https://ente-bus-app-api.onrender.com";
 
   const queryParams = new URLSearchParams(location.search);
   const from = queryParams.get('from');
@@ -37,12 +56,12 @@ export default function BusResults() {
         setLoading(true);
         setError(null);
         const res = await axios.get(
-          `https://entebus-api.onrender.com/api/buses?from=${from}&to=${to}`
+          `${API_URL}/api/buses?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
         );
-        setBuses(res.data);
+        setBuses(Array.isArray(res.data) ? res.data : []);
       } catch (err) {
         console.error('API Fetch Error:', err);
-        setError('Unable to connect to the fleet database. Please try again.');
+        setError('Unable to connect to the fleet database.');
       } finally {
         setLoading(false);
       }
@@ -51,128 +70,142 @@ export default function BusResults() {
     fetchBuses();
   }, [from, to]);
 
+  const handleSelectBus = (busId) => {
+    navigate(`/seats/${busId}?date=${date || new Date().toISOString().split('T')[0]}`);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-900 flex flex-col justify-center items-center">
         <Loader className="animate-spin text-indigo-500 mb-4" size={48} />
-        <p className="text-indigo-500 font-medium animate-pulse">
-          Scanning buses…
+        <p className="text-indigo-500 font-bold uppercase tracking-[0.3em] text-[10px]">
+          Scanning Available Fleet...
         </p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-slate-900 p-6 md:p-10 transition-colors duration-300 pb-20">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900 p-4 md:p-10 pb-28 font-sans transition-colors duration-500">
       <div className="max-w-5xl mx-auto">
-
-        {/* HEADER */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
-          <div className="flex items-center gap-5">
+        
+        {/* HEADER SECTION */}
+        <header className="flex flex-col gap-8 mb-12">
+          <div className="flex items-center justify-between">
             <button
-              onClick={() => navigate('/search')}
-              className="p-3 bg-white dark:bg-slate-800 text-gray-700 dark:text-white rounded-2xl shadow-xl border border-gray-100 dark:border-slate-700 hover:scale-105 active:scale-95 transition-all"
+              onClick={() => navigate('/')}
+              className="p-4 bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 hover:scale-105 transition-all"
             >
-              <ArrowLeft size={22} />
+              <ArrowLeft size={20} className="dark:text-white" />
             </button>
-
-            <div>
-              <h1 className="text-4xl font-bold text-gray-900 dark:text-white">
-                Available Buses
+            <div className="text-center">
+              <h1 className="text-2xl md:text-3xl font-extrabold dark:text-white uppercase tracking-tighter flex items-center justify-center gap-3">
+                <Bus size={28} className="text-indigo-600"/> Available Trips
               </h1>
-
-              {from && to && (
-                <div className="flex items-center gap-2 mt-2 text-sm text-indigo-500 font-semibold">
-                  <span>{from}</span>
-                  <ChevronRight size={14} className="text-gray-400" />
-                  <span>{to}</span>
-                  <span className="ml-3 text-gray-400 dark:text-slate-500 text-xs font-medium">
-                    | {date || 'Today'}
-                  </span>
-                </div>
-              )}
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.4em] mt-2">Fleet Selection Gateway</p>
             </div>
+            <div className="w-12"></div>
           </div>
-        </div>
+
+          {/* SEARCH SUMMARY BAR */}
+          <div className="bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-700 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-8">
+            <div className="flex items-center gap-5">
+              <div className="bg-indigo-50 dark:bg-indigo-900/30 p-4 rounded-2xl text-indigo-600">
+                <MapPin size={24}/>
+              </div>
+              <div>
+                <p className="text-[9px] uppercase text-slate-400 tracking-widest font-bold mb-1">Route</p>
+                <p className="text-sm font-extrabold dark:text-white uppercase tracking-tight flex items-center gap-2">
+                  <span className="capitalize">{from?.toLowerCase()}</span> 
+                  <ArrowRight size={14} className="opacity-30" /> 
+                  <span className="capitalize">{to?.toLowerCase()}</span>
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-5">
+              <div className="bg-emerald-50 dark:bg-emerald-900/30 p-4 rounded-2xl text-emerald-600">
+                <CalendarClock size={24}/>
+              </div>
+              <div>
+                <p className="text-[9px] uppercase text-slate-400 tracking-widest font-bold mb-1">Schedule</p>
+                <p className="text-sm font-extrabold dark:text-white uppercase tracking-tight">{date || 'Flexible Date'}</p>
+              </div>
+            </div>
+
+            <button 
+              onClick={() => navigate('/')} 
+              className="px-8 py-3 bg-slate-50 dark:bg-slate-900 text-indigo-600 dark:text-indigo-400 text-[10px] uppercase font-bold rounded-xl hover:bg-indigo-50 transition-all border border-transparent hover:border-indigo-100 tracking-widest"
+            >
+              Modify Search
+            </button>
+          </div>
+        </header>
 
         {/* ERROR STATE */}
         {error && (
-          <div className="bg-red-500/10 border border-red-500/20 p-8 rounded-2xl text-center mb-10">
-            <AlertCircle className="mx-auto text-red-500 mb-4" size={44} />
-            <p className="text-red-500 font-semibold">{error}</p>
-            <button
-              onClick={() => navigate('/search')}
-              className="mt-4 text-indigo-500 font-semibold underline text-sm"
-            >
-              Go back
-            </button>
+          <div className="bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/20 p-10 rounded-[3rem] text-center shadow-xl">
+            <AlertCircle className="mx-auto text-red-500 mb-4" size={48} />
+            <p className="text-red-600 font-bold uppercase text-xs tracking-widest leading-relaxed">{error}</p>
           </div>
         )}
 
-        {/* BUS LIST */}
-        <div className="grid gap-8">
-          <AnimatePresence>
-            {!error && buses.length > 0 ? (
+        {/* BUS LISTING */}
+        <div className="space-y-8">
+          <AnimatePresence mode="popLayout">
+            {buses.length > 0 ? (
               buses.map((bus, index) => (
                 <motion.div
                   key={bus._id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.08 }}
-                  className="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-xl border border-gray-50 dark:border-slate-700 flex flex-col md:flex-row justify-between items-center transition-all"
+                  transition={{ delay: index * 0.1 }}
+                  className="bg-white dark:bg-slate-800 p-8 md:p-10 rounded-[3rem] border border-slate-100 dark:border-slate-700 flex flex-col lg:flex-row justify-between items-center hover:shadow-[0_20px_50px_rgba(0,0,0,0.1)] dark:hover:shadow-[0_20px_50px_rgba(0,0,0,0.3)] transition-all group relative overflow-hidden"
                 >
-                  <div className="text-center md:text-left">
-                    <span className="px-3 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-full text-xs font-semibold">
-                      Verified Service
-                    </span>
-
-                    <h3 className="text-3xl font-bold text-gray-900 dark:text-white mt-3">
+                  <div className="flex-1 w-full text-center md:text-left">
+                    <div className="flex items-center justify-center md:justify-start gap-3 mb-6">
+                        <span className="px-4 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-full text-[9px] uppercase tracking-[0.2em] font-bold border border-emerald-100 dark:border-emerald-900/30">
+                          Active Service
+                        </span>
+                    </div>
+                    
+                    <h3 className="text-2xl md:text-3xl font-extrabold dark:text-white uppercase tracking-tighter mb-6 group-hover:text-indigo-600 transition-colors">
                       {bus.name}
                     </h3>
-
-                    <div className="flex items-center gap-2 mt-3 text-gray-500 dark:text-slate-400 text-sm justify-center md:justify-start">
-                      <Clock size={16} className="text-emerald-500" />
-                      Departs at {bus.departureTime}
+                    
+                    <div className="flex flex-wrap items-center justify-center md:justify-start gap-8 text-[11px] text-slate-400 uppercase tracking-widest font-bold">
+                       <span className="flex items-center gap-2.5">
+                          <Clock size={16} className="text-indigo-500"/> {bus.departureTime}
+                       </span>
+                       <span className="flex items-center gap-2.5">
+                          <Shield size={16} className="text-indigo-500"/> {bus.registrationNumber}
+                       </span>
                     </div>
                   </div>
 
-                  <div className="text-center md:text-right mt-8 md:mt-0 md:pl-12 md:border-l border-gray-100 dark:border-slate-700">
-                    <p className="text-xs text-gray-400 font-medium mb-1">
-                      Fare
-                    </p>
-
-                    <div className="flex items-center gap-1 text-4xl font-bold text-gray-900 dark:text-white mb-6 justify-center md:justify-end">
-                      <IndianRupee size={28} className="text-green-600" />
-                      {bus.price}
+                  <div className="flex flex-col sm:flex-row items-center gap-10 mt-10 lg:mt-0 pt-10 lg:pt-0 border-t lg:border-t-0 lg:border-l border-slate-50 dark:border-slate-700/50 w-full lg:w-auto lg:pl-12">
+                    <div className="text-center lg:text-right min-w-[120px]">
+                      <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold mb-2">Price Per Seat</p>
+                      <div className="flex items-center justify-center lg:justify-end text-4xl font-extrabold dark:text-white tracking-tighter">
+                        <IndianRupee size={28} className="text-indigo-600 mr-1" />
+                        {bus.price}
+                      </div>
                     </div>
-
+                    
                     <button
-                      onClick={() =>
-                        navigate(`/seats/${bus._id}?date=${date}`)
-                      }
-                      className="bg-indigo-600 hover:bg-indigo-700 px-10 py-4 rounded-2xl text-white font-semibold text-lg shadow-lg active:scale-95 transition-all"
+                      onClick={() => handleSelectBus(bus._id)}
+                      className="w-full sm:w-auto bg-slate-900 dark:bg-indigo-600 text-white px-12 py-6 rounded-[2rem] text-xs font-bold uppercase tracking-[0.2em] shadow-2xl hover:bg-black dark:hover:bg-indigo-500 active:scale-95 transition-all flex items-center justify-center gap-3"
                     >
-                      Select Seats
+                      Secure Seats <ChevronRight size={18}/>
                     </button>
                   </div>
                 </motion.div>
               ))
-            ) : !error && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="text-center py-24 bg-white dark:bg-slate-800 rounded-3xl border-2 border-dashed border-gray-200 dark:border-slate-700"
-              >
-                <Bus
-                  size={64}
-                  className="mx-auto text-slate-300 dark:text-slate-700 mb-6 opacity-20"
-                />
-                <h2 className="text-2xl font-semibold text-gray-500">
-                  No buses found
-                </h2>
-                <p className="text-sm text-gray-400 mt-2">
-                  Try a different route or date
-                </p>
+            ) : !loading && !error && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-32 bg-white dark:bg-slate-800 rounded-[3.5rem] border-2 border-dashed border-slate-200 dark:border-slate-700 shadow-sm">
+                <Bus size={80} className="mx-auto text-slate-200 dark:text-slate-700 mb-6 opacity-40" />
+                <h2 className="text-sm font-bold uppercase text-slate-400 tracking-[0.3em]">No fleet matches found</h2>
+                <button onClick={() => navigate('/')} className="mt-8 text-indigo-600 font-bold text-[10px] uppercase tracking-widest border-b-2 border-indigo-600 pb-1 hover:text-indigo-500 hover:border-indigo-500 transition-all">Modify Search Parameters</button>
               </motion.div>
             )}
           </AnimatePresence>

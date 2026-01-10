@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react'; // Added useEffect
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useNavigate, Link, useLocation } from 'react-router-dom'; // Added useLocation
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { Mail, Lock, Eye, EyeOff, ArrowLeft, KeyRound } from 'lucide-react';
 
@@ -11,6 +11,9 @@ export default function ResetPassword() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  // ✅ Centralized Localhost URL
+  const API_URL = "https://ente-bus-app-api.onrender.com";
 
   // --- ✅ NEW LOGIC: Auto-fill email if passed from Login page ---
   useEffect(() => {
@@ -37,7 +40,7 @@ export default function ResetPassword() {
     setLoading(true);
     try {
       // Sending lowercase email to ensure consistency with backend fix
-      const response = await axios.post('https://entebus-api.onrender.com/api/auth/reset-password', { 
+      const response = await axios.post(`${API_URL}/api/auth/reset-password`, { 
         email: email.toLowerCase().trim(), 
         newPassword 
       });

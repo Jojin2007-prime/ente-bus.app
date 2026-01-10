@@ -1,254 +1,182 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useToast } from '../context/ToastContext'; 
-import { Users, ArrowLeft, Phone, User, CheckCircle, FileText, Calendar, Filter, Clock, ArrowUpDown, MapPin, Printer } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Users, Bus, Calendar, Clock, 
+  MapPin, CheckCircle, XCircle, Search, 
+  ArrowLeft, Download, UserCheck, ShieldCheck, Printer
+} from 'lucide-react';
 
 export default function BusManifest() {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const { showToast } = useToast(); 
-
-  // --- STATE MANAGEMENT ---
   const [buses, setBuses] = useState([]);
-  const [selectedBus, setSelectedBus] = useState(null);
+  const [selectedBus, setSelectedBus] = useState('');
+  const [selectedDate, setSelectedDate] = useState(new Date().toLocaleDateString('en-CA'));
   const [passengers, setPassengers] = useState([]);
-  const [filterDate, setFilterDate] = useState(''); 
-  const [loading, setLoading] = useState(true);
-  const [sortBy, setSortBy] = useState('name'); 
+  const [loading, setLoading] = useState(false);
 
-  const API_URL = "https://entebus-api.onrender.com";
+  const API_URL = "https://ente-bus-app-api.onrender.com";
 
-  // --- 1. INITIALIZATION ---
+  // Fetch all buses for the dropdown
   useEffect(() => {
-    const init = async () => {
-      try {
-        const busRes = await axios.get(`${API_URL}/api/buses`);
-        setBuses(busRes.data);
-        setLoading(false);
+    axios.get(`${API_URL}/api/buses`)
+      .then(res => setBuses(res.data))
+      .catch(err => console.error(err));
+  }, []);
 
-        // Check for Deep Links (Coming from History Page)
-        const urlBusId = searchParams.get('busId');
-        const urlDate = searchParams.get('date');
-
-        if (urlBusId) {
-          const targetBus = busRes.data.find(b => b._id === urlBusId);
-          if (targetBus) {
-            handleViewManifest(targetBus, urlDate);
-          } else {
-            // Fallback for specific bus fetch
-            const specificBusRes = await axios.get(`${API_URL}/api/buses/${urlBusId}`);
-            handleViewManifest(specificBusRes.data, urlDate);
-          }
-        }
-      } catch (err) {
-        console.error("Init Error:", err);
-        setLoading(false);
-      }
-    };
-    init();
-  }, [searchParams]);
-
-  // --- 2. SORTING LOGIC ---
-  const getSortedBuses = () => {
-    return [...buses].sort((a, b) => {
-      if (sortBy === 'name') return a.name.localeCompare(b.name);
-      if (sortBy === 'route') return a.from.localeCompare(b.from);
-      if (sortBy === 'time') return a.departureTime.localeCompare(b.departureTime);
-      return 0;
-    });
-  };
-
-  // --- 3. FETCH DATA (FIXED LOGIC) ---
-  const fetchManifest = async (busId, date = '') => {
+  const fetchManifest = async () => {
+    if (!selectedBus) return alert("Please select a bus service");
+    setLoading(true);
     try {
-      // Logic Fix: Ensure parameters are passed correctly to the backend
-      const queryDate = date || filterDate; 
-      const res = await axios.get(`${API_URL}/api/admin/manifest`, {
-        params: { busId, date: queryDate }
-      });
-      
+      // Custom endpoint to get manifest based on busId and date
+      const res = await axios.get(`${API_URL}/api/admin/manifest?busId=${selectedBus}&date=${selectedDate}`);
       setPassengers(res.data);
-      if (res.data.length > 0) {
-        showToast(`Loaded ${res.data.length} bookings`, "success");
-      } else if (queryDate) {
-        showToast("No passengers found for this date", "info");
-      }
     } catch (err) {
       console.error(err);
-      showToast('Error connecting to manifest server', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
-  // --- 4. EVENT HANDLERS ---
-  const handleViewManifest = (bus, dateOverride = '') => {
-    setSelectedBus(bus);
-    const dateToUse = dateOverride || ''; 
-    setFilterDate(dateToUse);
-    fetchManifest(bus._id, dateToUse);
-  };
-
-  const handleDateFilterChange = (e) => {
-    const newDate = e.target.value;
-    setFilterDate(newDate);
-    if (selectedBus) {
-      fetchManifest(selectedBus._id, newDate);
-    }
-  };
-
-  const handleBack = () => {
-    if (searchParams.get('busId')) {
-      navigate('/admin/history');
-    } else {
-      setSelectedBus(null);
-      setPassengers([]);
-      setFilterDate('');
-    }
-  };
-
-  const formatTime = (timeStr) => {
-    if (!timeStr) return '';
-    const [hour, minute] = timeStr.split(':');
-    const h = parseInt(hour, 10);
-    const ampm = h >= 12 ? 'PM' : 'AM';
-    const h12 = h % 12 || 12; 
-    return `${h12}:${minute} ${ampm}`;
-  };
-
-  const processedManifest = passengers.flatMap(booking =>
-    booking.seatNumbers.map(seat => ({
-      seat,
-      name: booking.customerName || "Guest",
-      phone: booking.customerPhone || "N/A",
-      email: booking.customerEmail || "N/A",
-      status: booking.status,
-      date: booking.travelDate
-    }))
-  ).sort((a, b) => a.seat - b.seat);
+  const printManifest = () => window.print();
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-slate-900 p-6 md:p-10 transition-colors font-sans">
-      {/* HEADER SECTION */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-        <div className="flex items-center gap-4">
-          <button onClick={handleBack} className="p-2 bg-white dark:bg-slate-800 rounded-lg shadow-sm border dark:border-slate-700 hover:bg-gray-100 transition">
-            <ArrowLeft size={20} className="text-gray-600 dark:text-gray-300"/>
-          </button>
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900 transition-colors duration-500 p-6 md:p-10 font-sans pb-24">
+      <div className="max-w-6xl mx-auto">
+        
+        {/* HEADER */}
+        <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6 no-print">
           <div>
-            <h1 className="text-2xl font-black text-gray-900 dark:text-white uppercase italic tracking-tighter">
-              {selectedBus ? 'Trip Manifest' : 'Select Route'}
+            <h1 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tighter uppercase flex items-center gap-3">
+              Bus Manifest <Users className="text-indigo-500" size={32} />
             </h1>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Passenger Management</p>
+            <p className="text-[10px] text-slate-400 mt-2 uppercase tracking-[0.3em] font-bold">Passenger Boarding & Load Sheet</p>
+          </div>
+          <button onClick={printManifest} className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-xl border border-gray-200 dark:border-slate-700 active:scale-95 transition-all">
+            <Printer size={24} className="text-indigo-500" />
+          </button>
+        </header>
+
+        {/* FILTERS SECTION */}
+        <div className="bg-white dark:bg-slate-800 p-8 rounded-[3rem] shadow-xl border border-gray-100 dark:border-slate-700 mb-10 no-print">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="space-y-2">
+              <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-widest ml-2">Service Route</label>
+              <select 
+                value={selectedBus} 
+                onChange={(e) => setSelectedBus(e.target.value)}
+                className="w-full bg-gray-50 dark:bg-slate-900 border-none p-5 rounded-2xl font-bold text-sm outline-none focus:ring-2 ring-indigo-500/20 text-slate-900 dark:text-white transition-all"
+              >
+                <option value="">Select Bus</option>
+                {buses.map(bus => (
+                  <option key={bus._id} value={bus._id}>{bus.name} ({bus.from} - {bus.to})</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-extrabold uppercase text-slate-400 tracking-widest ml-2">Travel Date</label>
+              <input 
+                type="date" 
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="w-full bg-gray-50 dark:bg-slate-900 border-none p-5 rounded-2xl font-bold text-sm outline-none focus:ring-2 ring-indigo-500/20 text-slate-900 dark:text-white transition-all"
+              />
+            </div>
+
+            <div className="flex items-end">
+              <button 
+                onClick={fetchManifest}
+                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-5 rounded-2xl font-extrabold uppercase text-xs tracking-widest shadow-lg shadow-indigo-500/20 active:scale-95 transition-all flex items-center justify-center gap-3"
+              >
+                <Search size={18} /> Generate List
+              </button>
+            </div>
           </div>
         </div>
 
-        {!selectedBus && (
-          <div className="flex items-center gap-3 bg-white dark:bg-slate-800 px-4 py-2 rounded-xl border dark:border-slate-700 shadow-sm">
-            <span className="text-[10px] font-black text-gray-500 uppercase">Sort by:</span>
-            <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="bg-transparent font-bold text-xs dark:text-white outline-none cursor-pointer">
-              <option value="name">Bus Name</option>
-              <option value="time">Time</option>
-              <option value="route">Route</option>
-            </select>
+        {/* PASSENGER TABLE */}
+        <AnimatePresence mode="wait">
+          {passengers.length > 0 ? (
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-white dark:bg-slate-800 rounded-[3.5rem] shadow-2xl overflow-hidden border border-gray-100 dark:border-slate-700"
+            >
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="bg-slate-50 dark:bg-slate-900/50 border-b border-gray-100 dark:border-slate-700">
+                      <th className="px-8 py-6 text-[10px] font-extrabold uppercase tracking-widest text-slate-400">Seat</th>
+                      <th className="px-8 py-6 text-[10px] font-extrabold uppercase tracking-widest text-slate-400">Passenger Name</th>
+                      <th className="px-8 py-6 text-[10px] font-extrabold uppercase tracking-widest text-slate-400">Contact</th>
+                      <th className="px-8 py-6 text-[10px] font-extrabold uppercase tracking-widest text-slate-400 text-center">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50 dark:divide-slate-700/50">
+                    {passengers.map((p) => (
+                      <tr key={p._id} className="hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors">
+                        <td className="px-8 py-6">
+                          <span className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-xl font-black text-xs">
+                            {p.seatNumbers.join(", ")}
+                          </span>
+                        </td>
+                        <td className="px-8 py-6 font-extrabold text-slate-700 dark:text-slate-200 uppercase tracking-tight">
+                          {p.customerName}
+                        </td>
+                        <td className="px-8 py-6 font-bold text-slate-500 dark:text-slate-400 text-sm">
+                          {p.customerPhone}
+                        </td>
+                        <td className="px-8 py-6 text-center">
+                          {p.status === 'Boarded' ? (
+                            <span className="flex items-center justify-center gap-2 text-[10px] font-extrabold uppercase text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 px-4 py-2 rounded-full border border-emerald-100 dark:border-emerald-900/30">
+                              <ShieldCheck size={14} /> Boarded
+                            </span>
+                          ) : (
+                            <span className="flex items-center justify-center gap-2 text-[10px] font-extrabold uppercase text-amber-500 bg-amber-50 dark:bg-amber-900/20 px-4 py-2 rounded-full border border-amber-100 dark:border-amber-900/30">
+                              <Clock size={14} /> Paid
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              
+              <div className="p-10 bg-slate-50 dark:bg-slate-900/50 flex justify-between items-center">
+                <div className="flex gap-10">
+                   <div>
+                     <p className="text-[9px] font-extrabold uppercase text-slate-400 mb-1">Total Passengers</p>
+                     <p className="text-2xl font-black text-slate-900 dark:text-white">{passengers.length}</p>
+                   </div>
+                   <div>
+                     <p className="text-[9px] font-extrabold uppercase text-slate-400 mb-1">Seats Occupied</p>
+                     <p className="text-2xl font-black text-indigo-600">{passengers.reduce((acc, curr) => acc + curr.seatNumbers.length, 0)}</p>
+                   </div>
+                </div>
+                <div className="text-right">
+                   <p className="text-[9px] font-extrabold uppercase text-slate-400 mb-1">Manifest Generated</p>
+                   <p className="text-sm font-bold text-slate-600 dark:text-slate-400">{new Date().toLocaleString()}</p>
+                </div>
+              </div>
+            </motion.div>
+          ) : (
+            !loading && (
+              <div className="text-center py-24 bg-white dark:bg-slate-800 rounded-[3.5rem] border border-dashed border-gray-200 dark:border-slate-700">
+                <Users size={64} className="mx-auto mb-6 text-slate-200 dark:text-slate-700" />
+                <p className="font-bold uppercase tracking-[0.2em] text-slate-400 text-sm">No passengers for this trip</p>
+              </div>
+            )
+          )}
+        </AnimatePresence>
+
+        {loading && (
+          <div className="flex flex-col items-center justify-center py-24">
+            <Loader className="animate-spin text-indigo-500 mb-4" size={48} />
+            <p className="text-slate-500 text-[10px] font-extrabold uppercase tracking-widest">Compiling Manifest...</p>
           </div>
         )}
       </div>
-
-      {selectedBus ? (
-        <div className="max-w-6xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          {/* BUS INFO CARD */}
-          <div className="bg-indigo-600 text-white p-8 rounded-[2.5rem] shadow-xl flex flex-col md:flex-row justify-between items-center gap-6 relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-10 opacity-10 rotate-12"><Users size={120}/></div>
-            <div className="relative z-10">
-              <h2 className="text-4xl font-black italic uppercase mb-2 tracking-tighter">{selectedBus.name}</h2>
-              <div className="flex flex-wrap gap-3">
-                <span className="bg-white/20 px-4 py-1.5 rounded-full text-[10px] font-black uppercase italic border border-white/10">{selectedBus.from} → {selectedBus.to}</span>
-                <span className="bg-white/20 px-4 py-1.5 rounded-full text-[10px] font-black uppercase italic border border-white/10">{formatTime(selectedBus.departureTime)}</span>
-              </div>
-            </div>
-            <div className="bg-white/10 p-5 rounded-3xl border border-white/20 backdrop-blur-md relative z-10 min-w-[200px]">
-              <label className="text-[9px] font-black uppercase block mb-1 tracking-widest opacity-60">Journey Date</label>
-              <input type="date" value={filterDate} onChange={handleDateFilterChange} className="bg-transparent font-black text-lg outline-none invert cursor-pointer w-full" />
-            </div>
-          </div>
-
-          {/* PASSENGER TABLE */}
-          <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] border dark:border-slate-700 overflow-hidden shadow-sm">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead className="bg-gray-50 dark:bg-slate-900 border-b dark:border-slate-700">
-                  <tr className="text-[10px] uppercase font-black tracking-widest text-gray-400">
-                    <th className="p-6">Seat</th>
-                    <th className="p-6">Passenger Details</th>
-                    <th className="p-6">Contact Info</th>
-                    <th className="p-6">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y dark:divide-slate-700">
-                  {processedManifest.length > 0 ? processedManifest.map((p, idx) => (
-                    <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition duration-300">
-                      <td className="p-6 font-black text-xl text-indigo-600 italic">#{p.seat}</td>
-                      <td className="p-6 font-black dark:text-white uppercase text-sm italic">{p.name}</td>
-                      <td className="p-6">
-                        <p className="text-xs font-bold dark:text-gray-300">{p.phone}</p>
-                        <p className="text-[10px] text-gray-400 font-medium">{p.email}</p>
-                      </td>
-                      <td className="p-6">
-                        <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase italic border ${
-                          p.status === 'Boarded' 
-                            ? 'bg-green-100 text-green-700 border-green-200' 
-                            : 'bg-blue-100 text-blue-700 border-blue-200'
-                        }`}>
-                          {p.status}
-                        </span>
-                      </td>
-                    </tr>
-                  )) : (
-                    <tr>
-                      <td colSpan="4" className="p-20 text-center">
-                        <div className="flex flex-col items-center opacity-20">
-                          <Users size={64} className="mb-4"/>
-                          <p className="font-black uppercase italic tracking-widest">No Manifest Data</p>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-            {processedManifest.length > 0 && (
-              <div className="p-8 bg-gray-50 dark:bg-slate-900 border-t dark:border-slate-700 flex justify-end">
-                <button onClick={() => window.print()} className="bg-gray-900 text-white px-8 py-4 rounded-2xl font-black text-xs uppercase italic flex items-center gap-2 shadow-xl active:scale-95 transition-all">
-                  <Printer size={16}/> Download Passenger List
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      ) : (
-        /* BUS GRID VIEW */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in duration-500">
-          {getSortedBuses().map(bus => (
-            <div key={bus._id} onClick={() => handleViewManifest(bus)} className="bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] border dark:border-slate-700 hover:shadow-2xl transition-all cursor-pointer group hover:-translate-y-1">
-              <h3 className="font-black text-2xl dark:text-white group-hover:text-indigo-600 transition uppercase italic tracking-tighter">{bus.name}</h3>
-              <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-6">{bus.registrationNumber || 'No ID'}</p>
-              <div className="flex justify-between items-center bg-gray-50 dark:bg-slate-900 p-5 rounded-[1.5rem] border dark:border-slate-700">
-                <div className="flex flex-col">
-                  <span className="text-[9px] font-black uppercase text-gray-400 tracking-widest mb-1">Route</span>
-                  <span className="text-xs font-black dark:text-gray-300 italic">{bus.from} → {bus.to}</span>
-                </div>
-                <div className="flex flex-col items-end">
-                  <span className="text-[9px] font-black uppercase text-gray-400 tracking-widest mb-1">Time</span>
-                  <span className="text-indigo-600 font-black text-xs italic">{formatTime(bus.departureTime)}</span>
-                </div>
-              </div>
-              <div className="mt-6 flex justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <span className="text-[10px] font-black text-indigo-500 uppercase italic">Tap to view manifest →</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

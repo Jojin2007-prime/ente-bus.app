@@ -5,18 +5,29 @@ import { CheckCircle, Clock } from 'lucide-react';
 export default function AdminComplaints() {
   const [complaints, setComplaints] = useState([]);
 
+  // ✅ Centralized Localhost URL (Matches your Admin.jsx)
+  const API_URL = "https://ente-bus-app-api.onrender.com";
+
   useEffect(() => {
     fetchComplaints();
   }, []);
 
   const fetchComplaints = async () => {
-    const res = await axios.get('http://localhost:5000/api/complaints/all');
-    setComplaints(res.data);
+    try {
+      const res = await axios.get(`${API_URL}/api/complaints/all`);
+      setComplaints(res.data);
+    } catch (err) {
+      console.error("Error fetching complaints:", err);
+    }
   };
 
   const markResolved = async (id) => {
-    await axios.put(`http://localhost:5000/api/complaints/resolve/${id}`);
-    fetchComplaints(); // Refresh list
+    try {
+      await axios.put(`${API_URL}/api/complaints/resolve/${id}`);
+      fetchComplaints(); // Refresh list
+    } catch (err) {
+      console.error("Error updating status:", err);
+    }
   };
 
   return (

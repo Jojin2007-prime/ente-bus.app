@@ -36,3 +36,21 @@ html {
     @apply bg-white/70 dark:bg-slate-800/70 backdrop-blur-md border border-white/20 dark:border-slate-700/50;
   }
 }
+@keyframes scan-line {
+  0% { top: 0; }
+  100% { top: 100%; }
+}
+
+.animate-scan-line {
+  position: absolute;
+  height: 2px;
+  width: 100%;
+  background: #4f46e5;
+  box-shadow: 0 0 15px #4f46e5;
+  animation: scan-line 2s linear infinite;
+}
+
+/* Fix for html5-qrcode library styling */
+#reader__dashboard_section_csr button {
+    display: none !important; /* Hide the library's default stop button */
+}

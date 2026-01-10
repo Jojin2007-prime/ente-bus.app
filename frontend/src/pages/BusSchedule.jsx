@@ -8,6 +8,9 @@ export default function BusSchedule() {
   const [buses, setBuses] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // ✅ Centralized Localhost URL
+  const API_URL = "https://ente-bus-app-api.onrender.com";
+
   // Authentication Check: Get user and admin status
   const user = JSON.parse(localStorage.getItem('user'));
   const admin = localStorage.getItem('admin');
@@ -23,7 +26,7 @@ export default function BusSchedule() {
   };
 
   useEffect(() => {
-    axios.get('https://entebus-api.onrender.com/api/buses')
+    axios.get(`${API_URL}/api/buses`)
       .then(res => {
         setBuses(res.data);
         setLoading(false);

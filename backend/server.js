@@ -7,15 +7,13 @@ const jwt = require('jsonwebtoken');
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
 
-// --- ✅ IMPORT COMPLAINT ROUTES ---
-const complaintRoutes = require('./routes/complaintRoutes'); 
-
+// Load environment variables
 dotenv.config();
+
 const app = express();
 
+// --- MIDDLEWARE ---
 app.use(express.json());
-
-// --- ✅ CORS CONFIGURATION ---
 app.use(cors({
   origin: "*", 
   methods: ["GET", "POST", "PUT", "DELETE"],
@@ -23,9 +21,16 @@ app.use(cors({
 }));
 
 // --- DATABASE CONNECTION ---
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('✅ MongoDB Connected!'))
-  .catch(err => console.log('❌ DB Error:', err));
+const connectDB = async () => {
+  try {
+    const conn = await mongoose.connect(process.env.MONGO_URI);
+    console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+  } catch (error) {
+    console.error(`❌ DB Connection Error: ${error.message}`);
+    process.exit(1);
+  }
+};
+connectDB();
 
 // --- RAZORPAY CONFIG ---
 const razorpay = new Razorpay({
@@ -34,138 +39,227 @@ const razorpay = new Razorpay({
 });
 
 // --- MODELS ---
-
-const userSchema = new mongoose.Schema({
+const User = mongoose.model('User', new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-});
-const User = mongoose.model('User', userSchema);
+}));
 
-const busSchema = new mongoose.Schema({
-  name: String,
-  registrationNumber: String,
-  from: String,
-  to: String,
-  departureTime: String,
-  price: Number,
+const Bus = mongoose.model('Bus', new mongoose.Schema({
+  name: { type: String, required: true },
+  registrationNumber: { type: String, required: true },
+  from: { type: String, required: true },
+  to: { type: String, required: true },
+  departureTime: { type: String, required: true },
+  price: { type: Number, required: true },
   driverName: String,
   driverContact: String,
-});
-const Bus = mongoose.model('Bus', busSchema);
+}));
 
-const bookingSchema = new mongoose.Schema({
+const Booking = mongoose.model('Booking', new mongoose.Schema({
   busId: { type: mongoose.Schema.Types.ObjectId, ref: 'Bus' },
   seatNumbers: [Number],
   customerEmail: String,
   customerName: String,
-  customerPhone: String, 
+  customerPhone: String,
   bookingDate: { type: Date, default: Date.now },
-  travelDate: String,
-  paymentId: String,     
-  orderId: String,       
+  travelDate: String, 
+  paymentId: String,
+  orderId: String,
   amount: Number,
-  status: { type: String, default: 'Pending' } // Statuses: Pending, Paid, Boarded, Expired
-});
-const Booking = mongoose.model('Booking', bookingSchema);
+  status: { type: String, default: 'Pending' } 
+}));
+
+const Complaint = mongoose.model('Complaint', new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false },
+  name: { type: String, required: true },
+  email: { type: String, required: true },
+  phone: { type: String }, 
+  category: { type: String, required: true },
+  tripDetails: { type: String }, 
+  message: { type: String, required: true },
+  status: { type: String, default: 'Pending' }, 
+  date: { type: Date, default: Date.now }
+}));
 
 // --- ROUTES ---
 
-// Use external complaint routes
-app.use('/api/complaints', complaintRoutes); 
-
-// 1. Auth Routes
+// Auth
 app.post('/api/auth/register', async (req, res) => {
   try {
-    if (req.body.password.length < 8) {
-      return res.status(400).json({ message: 'Password must be at least 8 characters long' });
-    }
-    const emailLower = req.body.email.toLowerCase();
-    const userExists = await User.findOne({ email: emailLower });
-    if (userExists) return res.status(400).json({ message: 'Email already exists' });
-    
+    const { email, password, name } = req.body;
+    if (password.length < 8) return res.status(400).json({ message: 'Password must be 8+ characters' });
+    const userExists = await User.findOne({ email: email.toLowerCase().trim() });
+    if (userExists) return res.status(400).json({ message: 'Email already registered' });
     const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(req.body.password, salt);
-    
-    const user = new User({ ...req.body, email: emailLower, password: hashedPassword });
+    const hashedPassword = await bcrypt.hash(password, salt);
+    const user = new User({ name, email: email.toLowerCase().trim(), password: hashedPassword });
     await user.save();
-    res.json({ message: 'User Registered Successfully!' });
+    res.json({ message: 'Success' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.post('/api/auth/login', async (req, res) => {
   try {
-    const user = await User.findOne({ email: req.body.email.toLowerCase() });
-    if (!user) return res.status(400).json({ message: 'Email not found' });
-    
+    const user = await User.findOne({ email: req.body.email.toLowerCase().trim() });
+    if (!user) return res.status(400).json({ message: 'Account not found' });
     const validPass = await bcrypt.compare(req.body.password, user.password);
-    if (!validPass) return res.status(400).json({ message: 'Invalid password' });
-    
-    const token = jwt.sign({ _id: user._id, email: user.email }, 'SECRET_KEY');
-    res.json({ token, user: { name: user.name, email: user.email } });
+    if (!validPass) return res.status(400).json({ message: 'Invalid credentials' });
+    const token = jwt.sign({ _id: user._id }, 'SECRET_KEY');
+    res.json({ token, user: { _id: user._id, name: user.name, email: user.email } });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 2. Bus Management
+app.post('/api/admin/login', (req, res) => {
+  const { email, password } = req.body; 
+  const ADMIN_ID = "admin";
+  const ADMIN_PASS = "admin123";
+  if (email.trim() === ADMIN_ID && password.trim() === ADMIN_PASS) {
+    const token = jwt.sign({ role: 'admin' }, 'SECRET_KEY');
+    return res.json({ success: true, token, message: "Welcome Boss!" });
+  }
+  return res.status(401).json({ success: false, message: "Invalid Credentials" });
+});
+
+// Admin Data
+app.get('/api/admin/bookings', async (req, res) => {
+  try {
+    const bookings = await Booking.find().sort({ bookingDate: -1 });
+    res.json(bookings);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/admin/manifest', async (req, res) => {
+  try {
+    const { busId, date } = req.query;
+    const bookings = await Booking.find({ 
+      busId, 
+      travelDate: date, 
+      status: { $in: ['Paid', 'Boarded'] } 
+    });
+    res.json(bookings);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ✅ UPDATED REVENUE LOGIC: SHOW ALL BUSES (EVEN NEW ONES)
+app.get('/api/admin/revenue-stats', async (req, res) => {
+  try {
+    const { busId, date } = req.query;
+
+    // 1. Drill Down (Specific Bus + Date)
+    if (busId && date) {
+      const specificData = await Booking.aggregate([
+        { 
+          $match: { 
+            busId: new mongoose.Types.ObjectId(busId), 
+            travelDate: date,
+            status: { $in: ['Paid', 'Boarded'] } 
+          } 
+        },
+        { $group: { _id: null, total: { $sum: "$amount" } } }
+      ]);
+      return res.json({ filteredRevenue: specificData[0]?.total || 0 });
+    }
+
+    // 2. Overall Dashboard Stats (Start from Bus Collection to show 0 revenue buses)
+    const overallData = await Booking.aggregate([
+      { $match: { status: { $in: ['Paid', 'Boarded'] } } },
+      { $group: { _id: null, total: { $sum: "$amount" }, count: { $sum: 1 } } }
+    ]);
+
+    const busStats = await Bus.aggregate([
+      {
+        $lookup: {
+          from: "bookings",
+          localField: "_id",
+          foreignField: "busId",
+          as: "all_bookings"
+        }
+      },
+      {
+        $project: {
+          name: 1,
+          registrationNumber: 1,
+          revenue: {
+            $sum: {
+              $map: {
+                input: "$all_bookings",
+                as: "b",
+                in: { 
+                  $cond: [
+                    { $in: ["$$b.status", ["Paid", "Boarded"]] },
+                    "$$b.amount",
+                    0
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      { 
+        // Reshape to match frontend expectations
+        $project: {
+          _id: 1,
+          revenue: 1,
+          details: { name: "$name", registrationNumber: "$registrationNumber" }
+        }
+      }
+    ]);
+
+    res.json({ 
+        overallTotal: overallData[0]?.total || 0, 
+        totalBookings: overallData[0]?.count || 0, 
+        busStats 
+    });
+
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Bus Management
 app.get('/api/buses', async (req, res) => {
-  const { from, to } = req.query;
-  try {
-    const query = {};
-    if (from) query.from = new RegExp(from, 'i');
-    if (to) query.to = new RegExp(to, 'i');
-    const buses = await Bus.find(query);
-    res.json(buses);
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-app.get('/api/buses/:id', async (req, res) => {
-  try {
-    const bus = await Bus.findById(req.params.id);
-    res.json(bus);
+  try { 
+    const { from, to } = req.query;
+    let query = {};
+    if (from && to) {
+      query.from = { $regex: new RegExp("^" + from + "$", "i") };
+      query.to = { $regex: new RegExp("^" + to + "$", "i") };
+    }
+    res.json(await Bus.find(query)); 
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.post('/api/buses', async (req, res) => {
   try {
-    const newBus = new Bus(req.body);
-    await newBus.save();
-    res.json({ message: 'Bus Added', bus: newBus });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+    const bus = new Bus(req.body);
+    await bus.save();
+    res.status(201).json({ success: true, bus });
+  } catch (err) { res.status(400).json({ success: false, message: err.message }); }
 });
 
 app.put('/api/buses/:id', async (req, res) => {
   try {
     const updatedBus = await Bus.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    res.json({ message: 'Bus Updated', bus: updatedBus });
+    res.json({ success: true, bus: updatedBus });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.delete('/api/buses/:id', async (req, res) => {
+  try { await Bus.findByIdAndDelete(req.params.id); res.json({ message: 'Deleted' }); } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Booking & Payment
+app.get('/api/bookings/occupied', async (req, res) => {
   try {
-    await Bus.findByIdAndDelete(req.params.id);
-    res.json({ message: 'Bus Deleted' });
+    const { busId, date } = req.query;
+    const bookings = await Booking.find({ busId, travelDate: date, status: { $in: ['Paid', 'Boarded'] } });
+    res.json(bookings.flatMap(b => b.seatNumbers));
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// 3. Booking & Payment Logic
 app.post('/api/bookings/init', async (req, res) => {
   try {
-    const { busId, seatNumbers, customerEmail, customerName, customerPhone, amount, date } = req.body;
-    
-    const existing = await Booking.find({
-      busId,
-      travelDate: date,
-      status: { $in: ['Paid', 'Boarded'] },
-      seatNumbers: { $in: seatNumbers }
-    });
-
-    if (existing.length > 0) {
-      return res.status(400).json({ message: 'One or more seats already booked for this date' });
-    }
-
-    const booking = new Booking({
-      busId, seatNumbers, customerEmail, customerName, customerPhone, amount, travelDate: date, status: 'Pending'
-    });
+    const booking = new Booking({ ...req.body, status: 'Pending' });
     await booking.save();
     res.json({ success: true, bookingId: booking._id });
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -173,12 +267,11 @@ app.post('/api/bookings/init', async (req, res) => {
 
 app.post('/api/payment/order', async (req, res) => {
   try {
-    const options = { 
-      amount: Math.round(req.body.amount * 100), 
-      currency: "INR", 
-      receipt: "rcp_" + Date.now() 
-    };
-    const order = await razorpay.orders.create(options);
+    const order = await razorpay.orders.create({
+      amount: Math.round(req.body.amount * 100),
+      currency: "INR",
+      receipt: "rcp_" + Date.now()
+    });
     res.json(order);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -188,117 +281,72 @@ app.post('/api/bookings/verify', async (req, res) => {
   try {
     const secret = process.env.RAZORPAY_KEY_SECRET || '10FbavAMxpgDor4tQk1ARVGc';
     const body = razorpay_order_id + "|" + razorpay_payment_id;
-    const expectedSignature = crypto.createHmac('sha256', secret).update(body.toString()).digest('hex');
-
+    const expectedSignature = crypto.createHmac('sha256', secret).update(body).digest('hex');
+    
     if (expectedSignature === razorpay_signature) {
-      const booking = await Booking.findById(bookingId);
-      if (!booking) return res.status(404).json({ message: "Booking not found" });
-
-      const today = new Date().toISOString().split('T')[0];
-      if (booking.travelDate < today) {
-        booking.status = 'Expired';
-        await booking.save();
-        return res.status(400).json({ success: false, message: 'Ticket expired.' });
-      }
-
-      booking.paymentId = razorpay_payment_id;
-      booking.orderId = razorpay_order_id;
-      booking.status = 'Paid';
-      await booking.save();
-      res.json({ success: true, message: 'Success', bookingId: booking._id });
+      await Booking.findByIdAndUpdate(bookingId, { 
+        status: 'Paid', paymentId: razorpay_payment_id, orderId: razorpay_order_id 
+      });
+      res.json({ success: true });
     } else {
-      res.status(400).json({ success: false, message: 'Invalid Signature' });
+      res.status(400).json({ success: false });
     }
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.put('/api/bookings/board/:id', async (req, res) => {
-  try {
-      const booking = await Booking.findByIdAndUpdate(req.params.id, { status: 'Boarded' }, { new: true });
-      if (!booking) return res.status(404).json({ message: "Booking not found" });
-      res.json({ message: "Passenger Boarded Successfully", booking });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// 4. Occupied Seats (Date Specific)
-app.get('/api/bookings/occupied', async (req, res) => {
-  const { busId, date } = req.query;
-  try {
-    const bookings = await Booking.find({ busId, travelDate: date, status: { $in: ['Paid', 'Boarded'] } });
-    const occupiedSeats = bookings.flatMap(b => b.seatNumbers);
-    res.json(occupiedSeats);
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// 5. Admin & Scanner Fixes
-
-// ✅ FIX: Verify Route populates busId for Scanner and Ticket Details
-app.get('/api/verify/:id', async (req, res) => {
-  try {
-    const booking = await Booking.findById(req.params.id).populate('busId');
-    if(!booking) return res.status(404).json({message: "Not Found"});
-    res.json(booking);
-  } catch (err) { res.status(500).json({ message: 'Invalid Ticket' }); }
-});
-
-// ✅ FIX: Manifest Route strictly filters by Bus and Date
-app.get('/api/admin/manifest', async (req, res) => {
-  const { busId, date } = req.query;
-  try {
-    const query = { 
-      busId, 
-      travelDate: date, 
-      status: { $in: ['Paid', 'Boarded', 'Pending'] } 
-    };
-    const bookings = await Booking.find(query).populate('busId').sort({ travelDate: -1 });
-    res.json(bookings);
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-app.get('/api/admin/history', async (req, res) => {
-  try {
-    const today = new Date().toISOString().split('T')[0];
-    const history = await Booking.aggregate([
-      { $match: { status: { $in: ['Paid', 'Boarded'] }, travelDate: { $lt: today } }},
-      { $group: {
-          _id: { busId: "$busId", date: "$travelDate" },
-          totalRevenue: { $sum: "$amount" },
-          totalPassengers: { $sum: { $size: "$seatNumbers" } }
-      }},
-      { $lookup: { from: "buses", localField: "_id.busId", foreignField: "_id", as: "busDetails" }},
-      { $unwind: "$busDetails" },
-      { $sort: { "_id.date": -1 } }
-    ]);
-    res.json(history.map(item => ({
-      _id: item._id.busId,
-      date: item._id.date,
-      bus: item.busDetails,
-      revenue: item.totalRevenue,
-      passengers: item.totalPassengers
-    })));
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-app.get('/api/admin/bookings', async (req, res) => {
-  try {
-    const bookings = await Booking.find().populate('busId').sort({ _id: -1 });
-    res.json(bookings);
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// 6. User History
 app.get('/api/bookings/user/:email', async (req, res) => {
   try {
-    const today = new Date().toISOString().split('T')[0];
-    const bookings = await Booking.find({ customerEmail: req.params.email }).populate('busId').sort({_id:-1});
-    const updated = bookings.map(b => {
-      const obj = b.toObject();
-      if (obj.status === 'Pending' && obj.travelDate < today) obj.status = 'Expired';
-      return obj;
-    });
-    res.json(updated);
+    const bookings = await Booking.find({ 
+      customerEmail: { $regex: new RegExp("^" + req.params.email.trim() + "$", "i") } 
+    }).populate('busId').sort({ bookingDate: -1 });
+    res.json(bookings);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Admin Features
+app.post('/api/admin/refund/:bookingId', async (req, res) => {
+  try {
+    const booking = await Booking.findById(req.params.bookingId);
+    if (!booking || !booking.paymentId) return res.status(404).json({ message: "No payment found" });
+    await razorpay.payments.refund(booking.paymentId, { amount: booking.amount * 100 });
+    booking.status = 'Refunded';
+    await booking.save();
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/admin/verify-ticket/:bookingId', async (req, res) => {
+  try {
+    const booking = await Booking.findById(req.params.bookingId).populate('busId');
+    if (!booking) return res.status(404).json({ message: "Invalid Ticket", status: "invalid" });
+    if (booking.status === 'Refunded') return res.json({ message: "Ticket Refunded", status: "refunded", booking });
+    if (booking.status === 'Boarded') return res.json({ message: "Already Boarded", status: "boarded_already", booking });
+    return res.json({ message: "Valid Ticket", status: "success", booking });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/admin/confirm-board/:bookingId', async (req, res) => {
+  try {
+    await Booking.findByIdAndUpdate(req.params.bookingId, { status: 'Boarded' });
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Complaints
+app.post('/api/complaints/add', async (req, res) => {
+  try { const c = new Complaint(req.body); await c.save(); res.json({ message: 'Submitted' }); } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/complaints/all', async (req, res) => {
+  try { res.json(await Complaint.find().sort({ date: -1 })); } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/complaints/resolve/:id', async (req, res) => {
+  try {
+    await Complaint.findByIdAndUpdate(req.params.id, { status: 'Resolved' });
+    res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Final Server on Port ${PORT}`));

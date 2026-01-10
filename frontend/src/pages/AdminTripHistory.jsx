@@ -1,22 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader } from 'lucide-react';
+import { ArrowLeft, Loader, IndianRupee, MapPinned, CalendarDays, Bus } from 'lucide-react';
 
 const AdminTripHistory = () => {
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  // ✅ Consistent Backend URL
-  const API_URL = "https://entebus-api.onrender.com";
+  const API_URL = "https://ente-bus-app-api.onrender.com";
 
   useEffect(() => {
     const fetchHistory = async () => {
       try {
         setLoading(true);
         const res = await axios.get(`${API_URL}/api/admin/history`);
-        setTrips(res.data);
+        setTrips(Array.isArray(res.data) ? res.data : []);
       } catch (err) {
         console.error("History Fetch Error:", err);
       } finally {
@@ -26,68 +25,107 @@ const AdminTripHistory = () => {
     fetchHistory();
   }, []);
 
-  // ✅ Matches the updated logic in BusManifest.jsx
-  const handleViewManifest = (busId, date) => {
-    navigate(`/admin/manifest?busId=${busId}&date=${date}`);
-  };
-
   return (
-    <div className="p-4 md:p-10 bg-gray-50 dark:bg-slate-900 min-h-screen transition-colors duration-300 font-sans">
-      
-      <div className="max-w-7xl mx-auto">
-        {/* Header Section */}
-        <div className="flex items-center gap-4 mb-6">
-          <button 
-            onClick={() => navigate('/admin')} 
-            className="p-2 bg-white dark:bg-slate-800 text-gray-700 dark:text-white rounded shadow-sm hover:bg-gray-50 dark:hover:bg-slate-700 transition"
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900 transition-colors font-sans">
+      <div className="max-w-7xl mx-auto px-4 md:px-10 py-10">
+
+        {/* ================= HEADER ================= */}
+        <div className="flex items-center gap-5 mb-10">
+          <button
+            onClick={() => navigate('/admin')}
+            className="p-3 rounded-xl bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700
+                       shadow-sm hover:shadow-md transition active:scale-95"
           >
             <ArrowLeft size={20} />
           </button>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white uppercase italic tracking-tighter">Trip History</h1>
+
+          <div>
+            <h1 className="text-3xl md:text-4xl font-black tracking-tight uppercase italic text-gray-900 dark:text-white">
+              Full Trip History
+            </h1>
+            <p className="mt-1 text-[10px] font-bold tracking-[0.3em] uppercase text-gray-400">
+              Complete Revenue & Passenger Database
+            </p>
+          </div>
         </div>
 
-        {/* Table Container */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden transition-colors">
-          
+        {/* ================= TABLE CARD ================= */}
+        <div className="bg-white dark:bg-slate-800 rounded-[2.5rem] border border-gray-100 dark:border-slate-700 shadow-sm overflow-hidden">
+
           <div className="overflow-x-auto">
             {loading ? (
-              <div className="p-20 flex flex-col items-center justify-center gap-4">
-                <Loader className="animate-spin text-indigo-500" size={32} />
-                <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Loading Records...</p>
+              <div className="py-32 flex flex-col items-center gap-4">
+                <Loader size={40} className="animate-spin text-indigo-500" />
+                <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                  Syncing Database
+                </p>
               </div>
             ) : (
-              <table className="w-full text-left border-collapse min-w-[600px] md:min-w-full">
-                <thead className="bg-gray-100 dark:bg-slate-700/50 border-b border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-200 uppercase text-[10px] font-black tracking-widest">
-                  <tr>
-                    <th className="p-5">Date</th>
-                    <th className="p-5">Bus Service</th>
-                    <th className="p-5">Route Map</th>
-                    <th className="p-5">Revenue</th>
+              <table className="w-full min-w-[720px] border-collapse">
+                <thead className="bg-gray-50 dark:bg-slate-900/60 border-b border-gray-100 dark:border-slate-700">
+                  <tr className="text-[9px] font-black uppercase tracking-[0.25em] text-gray-400">
+                    <th className="p-6 text-left flex items-center gap-2">
+                      <CalendarDays size={14} /> Trip Date
+                    </th>
+                    <th className="p-6 text-left">
+                      <Bus size={14} className="inline mr-2" />
+                      Bus Service Name
+                    </th>
+                    <th className="p-6 text-left">
+                      <MapPinned size={14} className="inline mr-2" />
+                      Route Details
+                    </th>
+                    <th className="p-6 text-left">
+                      <IndianRupee size={14} className="inline mr-2" />
+                      Total Revenue
+                    </th>
                   </tr>
                 </thead>
-                
-                <tbody className="divide-y divide-gray-50 dark:divide-slate-700">
+
+                <tbody className="divide-y divide-gray-100 dark:divide-slate-700/50">
                   {trips.map((trip, index) => (
-                    <tr 
-                      key={index} 
-                      className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition cursor-pointer group"
-                      onClick={() => handleViewManifest(trip.bus?._id || trip._id, trip.date)}
+                    <tr
+                      key={index}
+                      className="hover:bg-gray-50/60 dark:hover:bg-slate-700/30 transition"
                     >
-                      <td className="p-5 font-black text-gray-700 dark:text-white whitespace-nowrap italic">
+                      {/* DATE */}
+                      <td className="p-6 text-sm font-black italic text-gray-700 dark:text-white whitespace-nowrap">
                         {trip.date}
                       </td>
-                      <td className="p-5 text-gray-900 dark:text-gray-300 font-bold group-hover:text-indigo-600 transition uppercase">
-                        {trip.bus?.name || 'Unknown Bus'}
+
+                      {/* BUS */}
+                      <td className="p-6">
+                        <p className="font-bold uppercase tracking-tight text-gray-900 dark:text-gray-100">
+                          {trip.bus?.name || 'Unknown Service'}
+                        </p>
+                        <p className="mt-1 text-[10px] font-mono lowercase text-gray-400 opacity-70">
+                          {trip.bus?.registrationNumber || 'no-reg-id'}
+                        </p>
                       </td>
-                      <td className="p-5 text-xs text-gray-500 dark:text-slate-400 font-bold">
-                        <div className="flex items-center gap-2">
-                          <span>{trip.bus?.from}</span>
-                          <span className="text-indigo-500">➝</span>
-                          <span>{trip.bus?.to}</span>
+
+                      {/* ROUTE */}
+                      <td className="p-6 text-xs">
+                        <div className="flex items-center gap-3 font-bold text-gray-600 dark:text-slate-400">
+                          <span className="px-2 py-1 rounded-md bg-gray-100 dark:bg-slate-700">
+                            {trip.bus?.from}
+                          </span>
+                          <span className="text-indigo-500 font-black">→</span>
+                          <span className="px-2 py-1 rounded-md bg-gray-100 dark:bg-slate-700">
+                            {trip.bus?.to}
+                          </span>
                         </div>
                       </td>
-                      <td className="p-5 text-green-600 dark:text-green-400 font-black text-lg whitespace-nowrap italic">
-                        ₹{trip.revenue}
+
+                      {/* REVENUE */}
+                      <td className="p-6">
+                        <div className="flex flex-col">
+                          <span className="text-xl font-black italic text-green-600 dark:text-green-400">
+                            ₹{trip.revenue?.toLocaleString()}
+                          </span>
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400">
+                            {trip.passengers} Passengers
+                          </span>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -95,11 +133,16 @@ const AdminTripHistory = () => {
               </table>
             )}
           </div>
-          
-          {/* Empty State */}
+
+          {/* ================= EMPTY STATE ================= */}
           {!loading && trips.length === 0 && (
-            <div className="p-20 text-center text-gray-400 dark:text-slate-500 bg-white dark:bg-slate-800">
-              <p className="font-black uppercase italic tracking-widest opacity-30 text-xs">No historical trip data found</p>
+            <div className="py-32 text-center">
+              <div className="inline-flex p-6 rounded-full bg-gray-50 dark:bg-slate-900 mb-4">
+                <Bus size={48} className="text-gray-200 dark:text-slate-700" />
+              </div>
+              <p className="text-sm font-black uppercase italic tracking-widest text-gray-300 dark:text-slate-600">
+                No historical records found
+              </p>
             </div>
           )}
         </div>

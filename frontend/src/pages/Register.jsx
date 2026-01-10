@@ -12,12 +12,15 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  // ✅ Centralized Localhost URL
+  const API_URL = "https://ente-bus-app-api.onrender.com";
+
   const handleRegister = async (e) => {
     e.preventDefault();
 
     // --- Added Password Length Validation ---
     if (password.length < 8) {
-      toast.error('Password must be at least 8 characters long!'); //
+      toast.error('Password must be at least 8 characters long!'); 
       return;
     }
     // ----------------------------------------
@@ -25,7 +28,7 @@ export default function Register() {
     setLoading(true);
     try {
       await axios.post(
-        'https://entebus-api.onrender.com/api/auth/register',
+        `${API_URL}/api/auth/register`,
         { name, email, password }
       );
 

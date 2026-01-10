@@ -7,6 +7,9 @@ export default function TicketPrices() {
   const [buses, setBuses] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // ✅ Centralized Localhost URL
+  const API_URL = "https://ente-bus-app-api.onrender.com";
+
   // Helper: 12H Time Format
   const formatTime = (time24) => {
     if (!time24) return "";
@@ -18,7 +21,7 @@ export default function TicketPrices() {
 
   useEffect(() => {
     // Fetches ALL buses because we send no query params
-    axios.get('https://entebus-api.onrender.com/api/buses')
+    axios.get(`${API_URL}/api/buses`)
       .then(res => {
         setBuses(res.data);
         setLoading(false);
@@ -67,8 +70,8 @@ export default function TicketPrices() {
                 <div className="pt-4 border-t border-gray-50 dark:border-slate-700 flex justify-between items-center text-sm transition-colors">
                   <span className="text-gray-400 dark:text-slate-500 font-medium">Daily Departure</span>
                   <div className="flex items-center gap-1 font-bold text-gray-700 dark:text-slate-200 bg-gray-50 dark:bg-slate-700/50 px-2 py-1 rounded transition-colors">
-                     <Clock size={14} className="text-orange-500"/>
-                     {formatTime(bus.departureTime)}
+                      <Clock size={14} className="text-orange-500"/>
+                      {formatTime(bus.departureTime)}
                   </div>
                 </div>
               </motion.div>

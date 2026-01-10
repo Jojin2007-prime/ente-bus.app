@@ -8,6 +8,9 @@ export default function Payment() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
 
+  // ✅ Centralized Localhost URL
+  const API_URL = "https://ente-bus-app-api.onrender.com";
+
   // Helper: Check if the travel date has already passed
   const isExpired = (travelDate) => {
     if (!travelDate) return false;
@@ -37,9 +40,11 @@ export default function Payment() {
 
     setLoading(true);
     try {
-      const orderUrl = "https://entebus-api.onrender.com/api/payment/order";
+      // 1. Create Order on Backend
+      const orderUrl = `${API_URL}/api/payment/order`;
       const { data: order } = await axios.post(orderUrl, { amount: state.amount });
 
+      // 2. Open Razorpay Modal
       const options = {
         key: "rzp_test_Rp42r0Aqd3EZrY", 
         amount: order.amount,
@@ -49,7 +54,8 @@ export default function Payment() {
         order_id: order.id, 
         handler: async function (response) {
           try {
-            const verifyUrl = "https://entebus-api.onrender.com/api/bookings/verify";
+            // 3. Verify Payment on Backend
+            const verifyUrl = `${API_URL}/api/bookings/verify`;
             const verifyData = {
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,

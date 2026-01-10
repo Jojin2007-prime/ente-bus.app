@@ -1,9 +1,9 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
 // Context Providers
 import { ThemeProvider } from './context/ThemeContext'; 
-import { ToastProvider } from './context/ToastContext'; // ✅ IMPORT CUSTOM TOAST PROVIDER
+import { ToastProvider } from './context/ToastContext'; 
 
 // Style & UI Feedback Imports
 import { ToastContainer } from 'react-toastify';
@@ -20,7 +20,7 @@ import BusResults from './pages/BusResults';
 import SeatSelection from './pages/SeatSelection';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import LoginOptions from './pages/LoginOptions';
+
 import AboutUs from './pages/AboutUs';
 import TicketPrices from './pages/TicketPrices';
 import PaymentHistory from './pages/PaymentHistory';
@@ -34,20 +34,14 @@ import ResetPassword from './pages/ResetPassword';
 
 // Admin Pages
 import Admin from './pages/Admin';
-import AdminLogin from './pages/AdminLogin';
 import AdminTripHistory from './pages/AdminTripHistory';
 import AdminComplaints from './pages/AdminComplaints';
 
 export default function App() {
   return (
     <ThemeProvider>
-      {/* ✅ WRAP WITH TOASTPROVIDER TO PREVENT ADMIN PAGE CRASH */}
       <ToastProvider> 
         <BrowserRouter>
-          {/* ✅ MOBILE UPDATE: 
-              'pb-[calc(5rem+env(safe-area-inset-bottom))]' ensures content 
-              is not hidden behind the BottomNav on iPhones and Androids.
-          */}
           <div className="min-h-screen bg-gray-50 dark:bg-gray-900 font-sans text-gray-900 dark:text-white transition-colors duration-300 relative pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0">
             
             <Navbar />
@@ -63,40 +57,44 @@ export default function App() {
             />
 
             <Routes>
-              {/* Core Booking Flow */}
+              {/* Public Routes */}
               <Route path="/" element={<Landing />} />
               <Route path="/search" element={<SearchBuses />} />
               <Route path="/buses" element={<BusResults />} />
+              
+              {/* Seat Selection Route */}
               <Route path="/seats/:busId" element={<SeatSelection />} />
               
-              {/* Authentication Flow */}
-              <Route path="/login-options" element={<LoginOptions />} />
+              {/* Auth Routes */}
               <Route path="/login" element={<Login />} />
+              
+              {/* Redirect old Admin Login URL to the new combined Login page */}
+              <Route path="/admin/login" element={<Navigate to="/login" replace />} />
+              
               <Route path="/register" element={<Register />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/switch-user" element={<SwitchUserWarning />} />
               
-              {/* User Features & Information */}
+              {/* Info & User Routes */}
               <Route path="/about" element={<AboutUs />} />
               <Route path="/prices" element={<TicketPrices />} />
               <Route path="/schedule" element={<BusSchedule />} />
               <Route path="/history" element={<PaymentHistory />} />
+              <Route path="/payment-history" element={<PaymentHistory />} />
               <Route path="/verify" element={<TicketVerifier />} />
               <Route path="/complaint" element={<Complaint />} />
               
-              {/* Transactional Pages */}
+              {/* Payment & Success Routes */}
               <Route path="/payment" element={<Payment />} />
               <Route path="/booking-success/:id" element={<BookingSuccess />} />
 
-              {/* Admin Portal */}
-              <Route path="/admin-login" element={<AdminLogin />} />
+              {/* Admin Routes */}
               <Route path="/admin" element={<Admin />} />
               <Route path="/admin/history" element={<AdminTripHistory />} />
               <Route path="/admin/complaints" element={<AdminComplaints />} />
             </Routes>
 
             <BottomNav />
-
           </div>
         </BrowserRouter>
       </ToastProvider>

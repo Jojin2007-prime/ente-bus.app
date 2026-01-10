@@ -1,26 +1,55 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   LogOut, ScanLine, History, Calendar, Home, 
   LayoutDashboard, Search, IndianRupee, Info, ChevronRight, 
-  Sun, Moon, MessageSquareWarning 
+  Sun, Moon, MessageSquareWarning, AlertTriangle 
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion'; 
 import { useTheme } from '../context/ThemeContext';
+import { useToast } from '../context/ToastContext'; 
 import BusLogo from './BusLogo'; 
 
 export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation(); 
   const { theme, toggleTheme } = useTheme();
+  
+  // Access Toast functions
+  const { success } = useToast(); 
+
+  // State to control the Custom Logout Modal
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const user = JSON.parse(localStorage.getItem('user'));
   const admin = localStorage.getItem('admin'); 
 
-  const handleLogout = () => {
+  // --- LOGOUT LOGIC (FIXED) ---
+  const performLogout = () => {
+    // ✅ CRITICAL FIX: Clear 'adminToken' so the Login page knows we are truly out
     localStorage.removeItem('user');
     localStorage.removeItem('admin'); 
+    localStorage.removeItem('token');
+    localStorage.removeItem('adminToken'); // <--- ADDED THIS LINE
+    
+    // Close modal and show success toast
+    setShowLogoutConfirm(false);
+    success("Logged out successfully"); 
+
     navigate('/');
-    window.location.reload();
+    
+    // Small delay to let the toast show before page reload
+    setTimeout(() => window.location.reload(), 1000);
+  };
+
+  // --- CLICK HANDLER ---
+  const handleLogoutClick = () => {
+    if (admin) {
+      // Instead of window.confirm, we open our Custom Modal
+      setShowLogoutConfirm(true); 
+    } else {
+      performLogout();
+    }
   };
 
   const NavItem = ({ to, icon: Icon, label }) => {
@@ -41,138 +70,140 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-md sticky top-0 z-50 border-b border-gray-100 dark:border-gray-800 transition-colors duration-300">
-      <div className="container mx-auto px-4 py-3">
-        <div className="flex items-center justify-between">
-          
-          {/* Logo */}
-          <Link
-            to="/"
-            className="text-2xl font-black text-gray-900 dark:text-white flex items-center gap-2"
-          >
-            <div className="p-1 scale-90 md:scale-100">
-              <BusLogo />
-            </div>
-            <span className="text-indigo-600 dark:text-indigo-400">
-              Ente<span className="text-yellow-400">Bus</span>
-            </span>
-          </Link>
-
-          {/* Desktop Nav */}
-          <div className="hidden md:flex flex-wrap justify-center gap-2">
-            <NavItem to="/" icon={Home} label="Home" />
-            {user && <NavItem to="/search" icon={Search} label="Search" />}
-            <NavItem to="/schedule" icon={Calendar} label="Schedule" />
-            <NavItem to="/prices" icon={IndianRupee} label="Prices" />
-
-            {user && !admin && (
-              <Link 
-                to="/complaint" 
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 transition-all"
-              >
-                <MessageSquareWarning size={18} /> Support
-              </Link>
-            )}
-
-            <NavItem to="/about" icon={Info} label="About" />
-          </div>
-
-          {/* Actions */}
-          <div className="flex items-center gap-2">
+    <>
+      <nav className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-md sticky top-0 z-50 border-b border-gray-100 dark:border-gray-800 transition-colors duration-300">
+        <div className="container mx-auto px-4 py-3">
+          <div className="flex items-center justify-between">
             
-            {/* Theme Toggle */}
-            <button 
-              onClick={toggleTheme} 
-              className="p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-all mr-1"
-            >
-              {theme === 'dark' ? <Sun size={20} className="text-yellow-400"/> : <Moon size={20}/>}
-            </button>
+            {/* Logo */}
+            <Link to="/" className="text-2xl font-black text-gray-900 dark:text-white flex items-center gap-2">
+              <div className="p-1 scale-90 md:scale-100">
+                <BusLogo />
+              </div>
+              <span className="text-indigo-600 dark:text-indigo-400">
+                Ente<span className="text-yellow-400">Bus</span>
+              </span>
+            </Link>
 
-            {/* Desktop Actions */}
-            <div className="hidden md:flex items-center gap-3">
+            {/* Desktop Nav */}
+            <div className="hidden md:flex flex-wrap justify-center gap-2">
+              <NavItem to="/" icon={Home} label="Home" />
+              {user && <NavItem to="/search" icon={Search} label="Search" />}
+              <NavItem to="/schedule" icon={Calendar} label="Schedule" />
+              <NavItem to="/prices" icon={IndianRupee} label="Prices" />
+
               {user && !admin && (
-                <Link
-                  to="/verify"
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm border transition-all mr-2
-                    ${location.pathname === '/verify'
-                      ? 'bg-indigo-600 text-white border-indigo-600'
-                      : 'bg-indigo-50 dark:bg-gray-800 text-indigo-700 dark:text-indigo-400 border-indigo-100 dark:border-gray-700 hover:bg-indigo-100 dark:hover:bg-gray-700'
-                    }`}
-                >
-                  <ScanLine size={18} /> Scan Ticket
+                <Link to="/complaint" className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 transition-all">
+                  <MessageSquareWarning size={18} /> Support
                 </Link>
               )}
+              <NavItem to="/about" icon={Info} label="About" />
+            </div>
 
-              <div className="w-px h-8 bg-gray-200 dark:bg-gray-700 mx-1"></div>
+            {/* Actions */}
+            <div className="flex items-center gap-2">
+              <button onClick={toggleTheme} className="p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-all mr-1">
+                {theme === 'dark' ? <Sun size={20} className="text-yellow-400"/> : <Moon size={20}/>}
+              </button>
 
-              {admin ? (
-                <div className="flex items-center gap-2">
-                  <Link
-                    to="/admin"
-                    className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-md transition-all"
-                  >
-                    <LayoutDashboard size={16} /> Dashboard
+              <div className="hidden md:flex items-center gap-3">
+                {user && !admin && (
+                  <Link to="/verify" className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm border transition-all mr-2 ${location.pathname === '/verify' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-indigo-50 dark:bg-gray-800 text-indigo-700 dark:text-indigo-400 border-indigo-100 dark:border-gray-700 hover:bg-indigo-100 dark:hover:bg-gray-700'}`}>
+                    <ScanLine size={18} /> Scan Ticket
                   </Link>
-                  <button
-                    onClick={handleLogout}
-                    className="p-2.5 text-gray-400 dark:text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition"
-                  >
-                    <LogOut size={20} />
-                  </button>
-                </div>
-              ) : user ? (
-                <div className="flex items-center gap-3">
-                  <div className="text-right">
-                    <p className="text-xs text-gray-400 font-bold">Welcome</p>
-                    <p className="text-sm font-bold text-gray-900 dark:text-white">
-                      {user.name.split(' ')[0]}
-                    </p>
+                )}
+
+                <div className="w-px h-8 bg-gray-200 dark:bg-gray-700 mx-1"></div>
+
+                {admin ? (
+                  /* --- ADMIN LOGGED IN VIEW --- */
+                  <div className="flex items-center gap-3">
+                    <Link to="/admin" className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-md transition-all">
+                      <LayoutDashboard size={16} /> Dashboard
+                    </Link>
+                    <button onClick={handleLogoutClick} className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-indigo-200 dark:shadow-none hover:bg-indigo-700 transition-all active:scale-95">
+                      Logout <ChevronRight size={16} />
+                    </button>
                   </div>
-                  <Link
-                    to="/history"
-                    className="p-2.5 bg-gray-100 dark:bg-gray-800 hover:bg-indigo-50 dark:hover:bg-gray-700 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl transition"
-                  >
-                    <History size={20} />
+                ) : user ? (
+                  /* --- USER LOGGED IN VIEW --- */
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <p className="text-xs text-gray-400 font-bold">Welcome</p>
+                      <p className="text-sm font-bold text-gray-900 dark:text-white">{user.name.split(' ')[0]}</p>
+                    </div>
+                    <Link to="/history" className="p-2.5 bg-gray-100 dark:bg-gray-800 hover:bg-indigo-50 dark:hover:bg-gray-700 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl transition">
+                      <History size={20} />
+                    </Link>
+                    <button onClick={handleLogoutClick} className="p-2.5 bg-gray-100 dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 rounded-xl transition">
+                      <LogOut size={20} />
+                    </button>
+                  </div>
+                ) : (
+                  /* --- NOT LOGGED IN VIEW --- */
+                  <Link to="/login" className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-indigo-200 dark:shadow-none hover:bg-indigo-700 transition-all active:scale-95">
+                    Login / Join <ChevronRight size={16} />
                   </Link>
-                  <button
-                    onClick={handleLogout}
-                    className="p-2.5 bg-gray-100 dark:bg-gray-800 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 rounded-xl transition"
-                  >
+                )}
+              </div>
+
+              {/* Mobile View */}
+              <div className="md:hidden flex items-center gap-2">
+                {(user || admin) ? (
+                  <button onClick={handleLogoutClick} className="p-2.5 bg-red-50 dark:bg-red-900/20 text-red-600 rounded-xl active:scale-95 transition-transform">
                     <LogOut size={20} />
                   </button>
-                </div>
-              ) : (
-                <Link
-                  to="/login-options"
-                  className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-indigo-200 dark:shadow-none hover:bg-indigo-700 transition-all active:scale-95"
-                >
-                  Login / Join <ChevronRight size={16} />
-                </Link>
-              )}
+                ) : (
+                  <Link to="/login" className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-xs font-bold active:scale-95 transition-transform">
+                    Login
+                  </Link>
+                )}
+              </div>
             </div>
-
-            {/* Mobile */}
-            <div className="md:hidden flex items-center gap-2">
-              {(user || admin) ? (
-                <button
-                  onClick={handleLogout}
-                  className="p-2.5 bg-red-50 dark:bg-red-900/20 text-red-600 rounded-xl active:scale-95 transition-transform"
-                >
-                  <LogOut size={20} />
-                </button>
-              ) : (
-                <Link
-                  to="/login-options"
-                  className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-xs font-bold active:scale-95 transition-transform"
-                >
-                  Login
-                </Link>
-              )}
-            </div>
-
           </div>
         </div>
-      </div>
-    </nav>
+      </nav>
+
+      {/* --- CUSTOM LOGOUT CONFIRMATION MODAL --- */}
+      <AnimatePresence>
+        {showLogoutConfirm && (
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/20 backdrop-blur-sm p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-2xl border border-gray-100 dark:border-slate-700 max-w-sm w-full"
+            >
+              <div className="flex flex-col items-center text-center gap-4">
+                <div className="bg-red-100 dark:bg-red-900/30 p-4 rounded-full text-red-600 dark:text-red-400">
+                  <AlertTriangle size={32} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1">Confirm Logout</h3>
+                  <p className="text-gray-500 dark:text-slate-400 text-sm">
+                    Admin session is active. Are you sure you want to logout?
+                  </p>
+                </div>
+                
+                <div className="flex items-center gap-3 w-full mt-2">
+                  <button 
+                    onClick={() => setShowLogoutConfirm(false)}
+                    className="flex-1 py-2.5 rounded-xl font-bold text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 transition"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={performLogout}
+                    className="flex-1 py-2.5 rounded-xl font-bold text-white bg-red-600 hover:bg-red-700 shadow-lg shadow-red-200 dark:shadow-none transition"
+                  >
+                    Yes, Logout
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }

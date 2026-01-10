@@ -11,7 +11,7 @@ export default function SearchBuses() {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  const API_URL = 'https://entebus-api.onrender.com';
+  const API_URL = 'https://ente-bus-app-api.onrender.com';
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user'));
