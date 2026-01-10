@@ -89,10 +89,18 @@ app.post('/api/auth/register', async (req, res) => {
   try {
     const { email, password, name } = req.body;
     if (password.length < 8) return res.status(400).json({ message: 'Password must be 8+ characters' });
-    const userExists = await User.findOne({ email: email.toLowerCase().trim() });
+    
+    // ✅ CASE-INSENSITIVE CHECK: Ensure email isn't already used regardless of casing
+    const userExists = await User.findOne({ 
+      email: { $regex: new RegExp("^" + email.trim() + "$", "i") } 
+    });
+    
     if (userExists) return res.status(400).json({ message: 'Email already registered' });
+    
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
+    
+    // Save new users as lowercase for future database consistency
     const user = new User({ name, email: email.toLowerCase().trim(), password: hashedPassword });
     await user.save();
     res.json({ message: 'Success' });
@@ -101,13 +109,45 @@ app.post('/api/auth/register', async (req, res) => {
 
 app.post('/api/auth/login', async (req, res) => {
   try {
-    const user = await User.findOne({ email: req.body.email.toLowerCase().trim() });
+    // ✅ FIX: Use Regex search so it finds the user even if saved as "User@Gmail.com"
+    const user = await User.findOne({ 
+      email: { $regex: new RegExp("^" + req.body.email.trim() + "$", "i") } 
+    });
+
     if (!user) return res.status(400).json({ message: 'Account not found' });
     const validPass = await bcrypt.compare(req.body.password, user.password);
     if (!validPass) return res.status(400).json({ message: 'Invalid credentials' });
     const token = jwt.sign({ _id: user._id }, 'SECRET_KEY');
     res.json({ token, user: { _id: user._id, name: user.name, email: user.email } });
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ✅ UPDATED: PASSWORD RESET ROUTE (Case-Insensitive search to fix 404/Not Found)
+app.post('/api/auth/reset-password', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    
+    // ✅ FIX: Use Regex search for existing accounts with mixed casing
+    const user = await User.findOne({ 
+      email: { $regex: new RegExp("^" + email.trim() + "$", "i") } 
+    });
+
+    if (!user) return res.status(404).json({ message: 'No account found with this email' });
+
+    if (password.length < 8) {
+      return res.status(400).json({ message: 'New password must be at least 8 characters' });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    user.password = hashedPassword;
+    await user.save();
+
+    res.json({ message: 'Password updated successfully!' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.post('/api/admin/login', (req, res) => {
@@ -141,12 +181,9 @@ app.get('/api/admin/manifest', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ✅ UPDATED REVENUE LOGIC: SHOW ALL BUSES (EVEN NEW ONES)
 app.get('/api/admin/revenue-stats', async (req, res) => {
   try {
     const { busId, date } = req.query;
-
-    // 1. Drill Down (Specific Bus + Date)
     if (busId && date) {
       const specificData = await Booking.aggregate([
         { 
@@ -160,13 +197,10 @@ app.get('/api/admin/revenue-stats', async (req, res) => {
       ]);
       return res.json({ filteredRevenue: specificData[0]?.total || 0 });
     }
-
-    // 2. Overall Dashboard Stats (Start from Bus Collection to show 0 revenue buses)
     const overallData = await Booking.aggregate([
       { $match: { status: { $in: ['Paid', 'Boarded'] } } },
       { $group: { _id: null, total: { $sum: "$amount" }, count: { $sum: 1 } } }
     ]);
-
     const busStats = await Bus.aggregate([
       {
         $lookup: {
@@ -198,7 +232,6 @@ app.get('/api/admin/revenue-stats', async (req, res) => {
         }
       },
       { 
-        // Reshape to match frontend expectations
         $project: {
           _id: 1,
           revenue: 1,
@@ -206,13 +239,11 @@ app.get('/api/admin/revenue-stats', async (req, res) => {
         }
       }
     ]);
-
     res.json({ 
         overallTotal: overallData[0]?.total || 0, 
         totalBookings: overallData[0]?.count || 0, 
         busStats 
     });
-
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -348,5 +379,6 @@ app.put('/api/complaints/resolve/:id', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ✅ RENDER PORT BINDING
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`🚀 Final Server on Port ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Final Case-Insensitive Server on Port ${PORT}`));
