@@ -13,7 +13,8 @@ export default function ResetPassword() {
   const navigate = useNavigate();
 
   // ✅ Centralized Localhost URL
-  const API_URL = "https://ente-bus-app-api.onrender.com";
+  // ✅ Correct dynamic URL for both Local and Vercel
+const API_URL = import.meta.env.VITE_API_URL || "https://ente-bus-app-api.onrender.com";
 
   // --- ✅ NEW LOGIC: Auto-fill email if passed from Login page ---
   useEffect(() => {
