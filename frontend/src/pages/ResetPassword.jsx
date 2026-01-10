@@ -35,28 +35,27 @@ export default function ResetPassword() {
       toast.error('New password must be at least 8 characters long!');
       return;
     }
-    // -------------------------
 
     setLoading(true);
     try {
-      // Sending lowercase email to ensure consistency with backend fix
-      const response = await axios.post(`${API_URL}/api/auth/reset-password`, { 
+      // ✅ FIX 1: Use the environment variable if available (for Vercel)
+      const ACTUAL_API_URL = import.meta.env.VITE_API_URL || API_URL;
+
+      // ✅ FIX 2: Send 'password' instead of 'newPassword' to match your auth.js backend
+      const response = await axios.post(`${ACTUAL_API_URL}/api/auth/reset-password`, { 
         email: email.toLowerCase().trim(), 
-        newPassword 
+        password: newPassword // <--- CHANGED THIS FROM newPassword TO password
       });
 
       toast.success(response.data.message || 'Password updated successfully!');
       
-      // --- ✅ LOGIC: Save email for auto-fill on Login page after redirect ---
       localStorage.setItem('resetEmail', email.toLowerCase().trim());
       
-      // Delay redirect so user can see the success message
       setTimeout(() => {
         navigate('/login');
       }, 2000);
 
     } catch (err) {
-      // Pull specific error message (e.g., "No account found") from server.js
       const errorMessage = err.response?.data?.message || 'Failed to reset password. Please check the email.';
       toast.error(errorMessage);
       console.error('Reset Error Details:', err.response?.data);

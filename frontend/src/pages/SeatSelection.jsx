@@ -18,8 +18,8 @@ export default function SeatSelection() {
   const [bus, setBus] = useState(null);
   const [occupiedSeats, setOccupiedSeats] = useState([]); 
   const [selectedSeats, setSelectedSeats] = useState([]); 
-  const [passengerName, setPassengerName] = useState('Jojin');
-  const [phone, setPhone] = useState('9809009992');
+  const [passengerName, setPassengerName] = useState('NAME');
+  const [phone, setPhone] = useState('MOBILE NUMBER');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
