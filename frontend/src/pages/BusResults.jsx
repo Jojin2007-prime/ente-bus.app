@@ -10,7 +10,6 @@ import {
   ChevronRight,
   AlertCircle,
   MapPin,
-  Ticket,
   Shield,
   ArrowRight
 } from 'lucide-react';
@@ -42,7 +41,7 @@ export default function BusResults() {
   const queryParams = new URLSearchParams(location.search);
   const from = queryParams.get('from');
   const to = queryParams.get('to');
-  const date = queryParams.get('date');
+  const travelDate = queryParams.get('date'); // Defined as travelDate for the button logic
 
   useEffect(() => {
     const fetchBuses = async () => {
@@ -70,8 +69,29 @@ export default function BusResults() {
     fetchBuses();
   }, [from, to]);
 
-  const handleSelectBus = (busId) => {
-    navigate(`/seats/${busId}?date=${date || new Date().toISOString().split('T')[0]}`);
+  // --- TIME CHECK LOGIC ---
+  const isBusTimeOver = (departureTime, date) => {
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+
+    // If no date provided, assume today
+    const checkDate = date || todayStr;
+
+    // If the travel date is in the future, it's not over
+    if (checkDate > todayStr) return false;
+    
+    // If the travel date is in the past, it's definitely over
+    if (checkDate < todayStr) return true;
+
+    // If it is today, compare current time vs departure time
+    const currentHours = now.getHours();
+    const currentMinutes = now.getMinutes();
+    const [busHours, busMinutes] = departureTime.split(':').map(Number);
+
+    if (currentHours > busHours) return true;
+    if (currentHours === busHours && currentMinutes >= busMinutes) return true;
+    
+    return false;
   };
 
   if (loading) {
@@ -129,7 +149,7 @@ export default function BusResults() {
               </div>
               <div>
                 <p className="text-[9px] uppercase text-slate-400 tracking-widest font-bold mb-1">Schedule</p>
-                <p className="text-sm font-extrabold dark:text-white uppercase tracking-tight">{date || 'Flexible Date'}</p>
+                <p className="text-sm font-extrabold dark:text-white uppercase tracking-tight">{travelDate || 'Flexible Date'}</p>
               </div>
             </div>
 
@@ -192,11 +212,18 @@ export default function BusResults() {
                       </div>
                     </div>
                     
+                    {/* UPDATED BUTTON LOGIC */}
                     <button
-                      onClick={() => handleSelectBus(bus._id)}
-                      className="w-full sm:w-auto bg-slate-900 dark:bg-indigo-600 text-white px-12 py-6 rounded-[2rem] text-xs font-bold uppercase tracking-[0.2em] shadow-2xl hover:bg-black dark:hover:bg-indigo-500 active:scale-95 transition-all flex items-center justify-center gap-3"
+                      onClick={() => !isBusTimeOver(bus.departureTime, travelDate) && navigate(`/seats/${bus._id}?date=${travelDate || new Date().toISOString().split('T')[0]}`)}
+                      disabled={isBusTimeOver(bus.departureTime, travelDate)}
+                      className={`w-full sm:w-auto px-12 py-6 rounded-[2rem] text-xs font-bold uppercase tracking-[0.2em] shadow-2xl transition-all flex items-center justify-center gap-3 ${
+                        isBusTimeOver(bus.departureTime, travelDate)
+                          ? 'bg-gray-400 cursor-not-allowed opacity-60 text-white'
+                          : 'bg-slate-900 dark:bg-indigo-600 text-white hover:bg-black dark:hover:bg-indigo-500 active:scale-95'
+                      }`}
                     >
-                      Secure Seats <ChevronRight size={18}/>
+                      {isBusTimeOver(bus.departureTime, travelDate) ? 'Bus Departed' : 'Secure Seats'} 
+                      {!isBusTimeOver(bus.departureTime, travelDate) && <ChevronRight size={18}/>}
                     </button>
                   </div>
                 </motion.div>
