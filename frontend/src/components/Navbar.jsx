@@ -14,38 +14,28 @@ export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation(); 
   const { theme, toggleTheme } = useTheme();
-  
-  // Access Toast functions
   const { success } = useToast(); 
 
-  // State to control the Custom Logout Modal
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const user = JSON.parse(localStorage.getItem('user'));
   const admin = localStorage.getItem('admin'); 
 
-  // --- LOGOUT LOGIC (FIXED) ---
   const performLogout = () => {
-    // ✅ CRITICAL FIX: Clear 'adminToken' so the Login page knows we are truly out
     localStorage.removeItem('user');
     localStorage.removeItem('admin'); 
     localStorage.removeItem('token');
-    localStorage.removeItem('adminToken'); // <--- ADDED THIS LINE
+    localStorage.removeItem('adminToken'); 
     
-    // Close modal and show success toast
     setShowLogoutConfirm(false);
     success("Logged out successfully"); 
 
     navigate('/');
-    
-    // Small delay to let the toast show before page reload
     setTimeout(() => window.location.reload(), 1000);
   };
 
-  // --- CLICK HANDLER ---
   const handleLogoutClick = () => {
     if (admin) {
-      // Instead of window.confirm, we open our Custom Modal
       setShowLogoutConfirm(true); 
     } else {
       performLogout();
@@ -116,7 +106,6 @@ export default function Navbar() {
                 <div className="w-px h-8 bg-gray-200 dark:bg-gray-700 mx-1"></div>
 
                 {admin ? (
-                  /* --- ADMIN LOGGED IN VIEW --- */
                   <div className="flex items-center gap-3">
                     <Link to="/admin" className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-md transition-all">
                       <LayoutDashboard size={16} /> Dashboard
@@ -126,7 +115,6 @@ export default function Navbar() {
                     </button>
                   </div>
                 ) : user ? (
-                  /* --- USER LOGGED IN VIEW --- */
                   <div className="flex items-center gap-3">
                     <div className="text-right">
                       <p className="text-xs text-gray-400 font-bold">Welcome</p>
@@ -140,15 +128,21 @@ export default function Navbar() {
                     </button>
                   </div>
                 ) : (
-                  /* --- NOT LOGGED IN VIEW --- */
                   <Link to="/login" className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-lg shadow-indigo-200 dark:shadow-none hover:bg-indigo-700 transition-all active:scale-95">
                     Login / Join <ChevronRight size={16} />
                   </Link>
                 )}
               </div>
 
-              {/* Mobile View */}
+              {/* ✅ MOBILE VIEW UPDATED */}
               <div className="md:hidden flex items-center gap-2">
+                {/* Show Admin Dashboard icon on mobile if admin is logged in */}
+                {admin && (
+                  <Link to="/admin" className="p-2.5 bg-red-50 dark:bg-red-900/20 text-red-600 rounded-xl active:scale-95 transition-transform">
+                    <LayoutDashboard size={20} />
+                  </Link>
+                )}
+
                 {(user || admin) ? (
                   <button onClick={handleLogoutClick} className="p-2.5 bg-red-50 dark:bg-red-900/20 text-red-600 rounded-xl active:scale-95 transition-transform">
                     <LogOut size={20} />
@@ -159,6 +153,7 @@ export default function Navbar() {
                   </Link>
                 )}
               </div>
+
             </div>
           </div>
         </div>
