@@ -90,7 +90,6 @@ app.post('/api/auth/register', async (req, res) => {
     const { email, password, name } = req.body;
     if (password.length < 8) return res.status(400).json({ message: 'Password must be 8+ characters' });
     
-    // ✅ CASE-INSENSITIVE CHECK: Ensure email isn't already used regardless of casing
     const userExists = await User.findOne({ 
       email: { $regex: new RegExp("^" + email.trim() + "$", "i") } 
     });
@@ -100,7 +99,6 @@ app.post('/api/auth/register', async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
     
-    // Save new users as lowercase for future database consistency
     const user = new User({ name, email: email.toLowerCase().trim(), password: hashedPassword });
     await user.save();
     res.json({ message: 'Success' });
@@ -109,7 +107,6 @@ app.post('/api/auth/register', async (req, res) => {
 
 app.post('/api/auth/login', async (req, res) => {
   try {
-    // ✅ FIX: Use Regex search so it finds the user even if saved as "User@Gmail.com"
     const user = await User.findOne({ 
       email: { $regex: new RegExp("^" + req.body.email.trim() + "$", "i") } 
     });
@@ -122,12 +119,9 @@ app.post('/api/auth/login', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ✅ UPDATED: PASSWORD RESET ROUTE (Case-Insensitive search to fix 404/Not Found)
 app.post('/api/auth/reset-password', async (req, res) => {
   try {
     const { email, password } = req.body;
-    
-    // ✅ FIX: Use Regex search for existing accounts with mixed casing
     const user = await User.findOne({ 
       email: { $regex: new RegExp("^" + email.trim() + "$", "i") } 
     });
@@ -346,14 +340,37 @@ app.post('/api/admin/refund/:bookingId', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ✅ UPDATED: Ticket Verification Route with Expired/Future logic
 app.get('/api/admin/verify-ticket/:bookingId', async (req, res) => {
   try {
     const booking = await Booking.findById(req.params.bookingId).populate('busId');
     if (!booking) return res.status(404).json({ message: "Invalid Ticket", status: "invalid" });
-    if (booking.status === 'Refunded') return res.json({ message: "Ticket Refunded", status: "refunded", booking });
-    if (booking.status === 'Boarded') return res.json({ message: "Already Boarded", status: "boarded_already", booking });
-    return res.json({ message: "Valid Ticket", status: "success", booking });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+
+    const today = new Date().toISOString().split('T')[0];
+    const travelDate = booking.travelDate; // Expected Format: YYYY-MM-DD
+
+    // 1. Check if already refunded
+    if (booking.status === 'Refunded') {
+      return res.json({ message: "Ticket Refunded", status: "refunded", booking });
+    }
+
+    // 2. Check if already boarded
+    if (booking.status === 'Boarded') {
+      return res.json({ message: "Already Boarded", status: "boarded_already", booking });
+    }
+
+    // 3. Date Logic
+    if (travelDate < today) {
+      return res.json({ message: "Ticket Expired", status: "expired", booking });
+    } else if (travelDate > today) {
+      return res.json({ message: "Future Trip", status: "future", booking });
+    } else {
+      return res.json({ message: "Valid for Today", status: "success", booking });
+    }
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.put('/api/admin/confirm-board/:bookingId', async (req, res) => {
