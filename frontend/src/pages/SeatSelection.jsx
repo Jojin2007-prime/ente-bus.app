@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
-import { Loader, User, Phone, ShieldCheck, CreditCard } from 'lucide-react';
+import { Loader, User, Phone, CreditCard, Calendar, Clock } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-// --- CUSTOM DRIVER CABIN ICON ---
 const SteeringWheel = ({ className }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className={className}>
     <circle cx="12" cy="12" r="10" />
@@ -30,11 +29,27 @@ export default function SeatSelection() {
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(true);
 
+  // --- HELPER: FORMAT DATE TO DD/MM/YYYY ---
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    const [year, month, day] = dateString.split('-');
+    return `${day}/${month}/${year}`;
+  };
+
+  // --- HELPER: FORMAT TIME TO 12HR CLOCK ---
+  const formatTime12h = (time24) => {
+    if (!time24) return "N/A";
+    const [hours, minutes] = time24.split(':');
+    let h = parseInt(hours);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    return `${h}:${minutes} ${ampm}`;
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        // Load User Data from LocalStorage
         const userData = JSON.parse(localStorage.getItem('user'));
         if (userData) {
           setPassengerName(userData.name || "");
@@ -69,8 +84,12 @@ export default function SeatSelection() {
 
   const totalAmount = selectedSeats.length * (Number(bus?.price) || 0);
 
+  // --- VALIDATION LOGIC ---
+  const isPhoneValid = phone.length === 10 && /^\d+$/.test(phone);
+  const canBook = selectedSeats.length > 0 && isPhoneValid && passengerName.trim() !== '';
+
   const handlePayment = async () => {
-    if (selectedSeats.length === 0) return alert("Please select seats first!");
+    if (!canBook) return;
     const userData = JSON.parse(localStorage.getItem('user'));
     if (!userData) return navigate('/login');
 
@@ -83,8 +102,12 @@ export default function SeatSelection() {
       const { data: order } = await axios.post(`${API_URL}/api/payment/order`, { amount: totalAmount });
 
       const options = {
-        key: "rzp_test_Rp42r0Aqd3EZrY", amount: order.amount, currency: "INR",
-        name: "Ente Bus", description: `Seat Booking: ${bus.name}`, order_id: order.id,
+        key: "rzp_test_Rp42r0Aqd3EZrY", 
+        amount: order.amount, 
+        currency: "INR",
+        name: "Ente Bus", 
+        description: `Booking for ${bus.name}`, 
+        order_id: order.id,
         handler: async (response) => {
           const verifyRes = await axios.post(`${API_URL}/api/bookings/verify`, { ...response, bookingId: bookingRes.data.bookingId });
           if (verifyRes.data.success) navigate(`/booking-success/${bookingRes.data.bookingId}`);
@@ -109,13 +132,11 @@ export default function SeatSelection() {
   const backRow = [36, 37, 38, 39, 40];
 
   return (
-    <div className="min-h-screen bg-[#020617] text-slate-200 py-10 px-4 font-sans transition-all">
+    <div className="min-h-screen bg-[#020617] text-slate-200 py-10 px-4 font-sans">
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
         
         {/* BUS VISUAL ENGINE */}
         <div className="lg:col-span-7 bg-[#0f172a] rounded-[4rem] shadow-2xl p-6 md:p-10 border-x-[16px] border-[#1e293b] relative overflow-hidden">
-          
-          {/* DRIVER CABIN AREA - FULL WIDTH */}
           <div className="w-full mb-14 bg-slate-900/80 rounded-[2.5rem] p-8 border border-white/5 flex items-center justify-between shadow-2xl">
             <div className="flex items-center gap-6">
               <div className="w-20 h-20 rounded-3xl bg-[#1e293b] border-2 border-slate-700 flex items-center justify-center shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)]">
@@ -129,35 +150,26 @@ export default function SeatSelection() {
                 </div>
               </div>
             </div>
-            
             <div className="text-right">
               <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest block mb-2">Main Entrance</span>
               <div className="w-24 h-1.5 bg-emerald-500 rounded-full shadow-[0_0_15px_rgba(16,185,129,0.4)]" />
             </div>
           </div>
 
-          {/* SEAT CABIN GRID */}
           <div className="space-y-6 px-4">
             {rows.map((row, idx) => (
               <div key={idx} className="flex justify-between items-center gap-6">
-                {/* Left (2 Seats) */}
                 <div className="flex gap-3">
                   {row.left.map(n => <Seat key={n} num={n} isOccupied={occupiedSeats.includes(n)} isSelected={selectedSeats.includes(n)} onToggle={toggleSeat} />)}
                 </div>
-
-                {/* Medium Professional Aisle Gap */}
                 <div className="flex-1 flex justify-center opacity-5">
                    <div className="w-[2px] h-14 bg-slate-400" />
                 </div>
-
-                {/* Right (3 Seats) */}
                 <div className="flex gap-3">
                   {row.right.map(n => <Seat key={n} num={n} isOccupied={occupiedSeats.includes(n)} isSelected={selectedSeats.includes(n)} onToggle={toggleSeat} />)}
                 </div>
               </div>
             ))}
-
-            {/* BACK ROW */}
             <div className="mt-12 pt-10 border-t border-white/5 flex justify-between gap-3">
                {backRow.map(n => <Seat key={n} num={n} isOccupied={occupiedSeats.includes(n)} isSelected={selectedSeats.includes(n)} onToggle={toggleSeat} />)}
             </div>
@@ -165,8 +177,30 @@ export default function SeatSelection() {
         </div>
 
         {/* SIDEBAR: INFO & PAYMENT */}
-        <div className="lg:col-span-5 space-y-8">
+        <div className="lg:col-span-5 space-y-6">
           
+          {/* TRIP SUMMARY CARD */}
+          <div className="bg-[#0f172a] p-6 rounded-[2.5rem] border border-white/5 flex justify-between items-center">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-indigo-500/10 rounded-2xl text-indigo-400">
+                <Calendar size={20} />
+              </div>
+              <div>
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Travel Date</p>
+                <p className="font-bold text-slate-200">{formatDate(selectedDate)}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4 text-right">
+              <div>
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Departure</p>
+                <p className="font-bold text-slate-200">{formatTime12h(bus?.departureTime)}</p>
+              </div>
+              <div className="p-3 bg-emerald-500/10 rounded-2xl text-emerald-400">
+                <Clock size={20} />
+              </div>
+            </div>
+          </div>
+
           {/* PASSENGER FORM */}
           <div className="bg-[#0f172a] p-8 rounded-[3rem] shadow-xl border border-white/5">
               <h2 className="text-xs font-black uppercase mb-8 flex items-center gap-3 text-indigo-400 tracking-[0.2em]">
@@ -176,12 +210,27 @@ export default function SeatSelection() {
               <div className="space-y-4">
                 <div className="relative">
                   <User className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-                  <input className="w-full pl-14 p-5 bg-[#1e293b] rounded-2xl font-bold text-white outline-none border border-transparent focus:border-indigo-500 transition-all" value={passengerName} onChange={e => setPassengerName(e.target.value)} placeholder="Full Name" />
+                  <input 
+                    className="w-full pl-14 p-5 bg-[#1e293b] rounded-2xl font-bold text-white outline-none border border-transparent focus:border-indigo-500 transition-all" 
+                    value={passengerName} 
+                    onChange={e => setPassengerName(e.target.value)} 
+                    placeholder="Full Name" 
+                  />
                 </div>
 
                 <div className="relative">
                   <Phone className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-                  <input className="w-full pl-14 p-5 bg-[#1e293b] rounded-2xl font-bold text-white outline-none border border-transparent focus:border-indigo-500 transition-all" value={phone} onChange={e => setPhone(e.target.value)} placeholder="Phone Number" maxLength={10} />
+                  <input 
+                    type="tel"
+                    className={`w-full pl-14 p-5 bg-[#1e293b] rounded-2xl font-bold text-white outline-none border transition-all ${phone.length > 0 && !isPhoneValid ? 'border-red-500/50' : 'border-transparent focus:border-indigo-500'}`} 
+                    value={phone} 
+                    onChange={e => setPhone(e.target.value.replace(/\D/g, ''))} 
+                    placeholder="10 Digit Phone Number" 
+                    maxLength={10} 
+                  />
+                  {phone.length > 0 && !isPhoneValid && (
+                    <p className="text-[10px] text-red-400 mt-2 ml-2 font-bold uppercase tracking-tighter">Please enter exactly 10 digits</p>
+                  )}
                 </div>
               </div>
           </div>
@@ -191,7 +240,7 @@ export default function SeatSelection() {
               <CreditCard className="absolute right-[-20px] top-[-20px] opacity-10 group-hover:rotate-12 transition-transform duration-700" size={200} />
               
               <div className="relative z-10">
-                <p className="text-[11px] font-black uppercase opacity-60 mb-2 tracking-[0.3em]">Payable Amount</p>
+                <p className="text-[11px] font-black uppercase opacity-60 mb-2 tracking-[0.3em]">Total for {selectedSeats.length} Seat(s)</p>
                 <h3 className="text-6xl font-black mb-10 tracking-tighter">
                   <span className="text-2xl align-top mr-1 opacity-40">₹</span>
                   {totalAmount.toLocaleString()}
@@ -199,10 +248,10 @@ export default function SeatSelection() {
                 
                 <button 
                   onClick={handlePayment} 
-                  disabled={selectedSeats.length === 0} 
-                  className="w-full py-6 bg-white text-indigo-700 rounded-3xl font-black uppercase text-sm tracking-widest shadow-xl hover:bg-slate-900 hover:text-white transition-all active:scale-95 disabled:opacity-40"
+                  disabled={!canBook} 
+                  className="w-full py-6 bg-white text-indigo-700 rounded-3xl font-black uppercase text-sm tracking-widest shadow-xl hover:bg-slate-900 hover:text-white transition-all active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
                 >
-                  Book Seat Now
+                  {!isPhoneValid && phone.length > 0 ? "Enter Valid Phone" : "Book Seat Now"}
                 </button>
               </div>
           </div>

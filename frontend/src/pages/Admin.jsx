@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Shield, Plus, Edit, Trash2, Users, Bus, Loader, 
   QrCode, ShieldCheck, XCircle, Scan, Search, Printer, 
-  TrendingUp, RefreshCw, LayoutDashboard, AlertCircle, Mail, MapPin, Clock, Phone
+  TrendingUp, RefreshCw, LayoutDashboard, AlertCircle, Mail, MapPin, Clock, Phone, Camera
 } from 'lucide-react';
 
 // ✅ CUSTOM ADMIN LOGO SVG
@@ -120,6 +120,7 @@ export default function Admin() {
       }, () => {}); 
     } catch (err) { setIsScannerEnabled(false); error("Camera Error"); } 
   };
+
   const handleVerifyTicket = async (id) => { try { const res = await axios.get(`${API_URL}/api/admin/verify-ticket/${id}`); setScanResult(res.data); } catch (err) { error("Invalid Ticket"); setScanResult(null); } };
   const handleConfirmBoarding = async () => { try { setBoardingLoading(true); await axios.put(`${API_URL}/api/admin/confirm-board/${scanResult.booking._id}`); success("Boarded"); setScanResult(prev => ({ ...prev, status: 'boarded_already', message: "Boarding Confirmed" })); } catch (err) { error("Failed"); } finally { setBoardingLoading(false); } };
   const handleResolveComplaint = async (id) => { try { await axios.put(`${API_URL}/api/complaints/resolve/${id}`); fetchComplaints(); success("Resolved"); } catch (err) { console.error(err); } };
@@ -144,7 +145,7 @@ export default function Admin() {
           </div>
         </div>
 
-        {/* ✅ MOBILE TAB GRID */}
+        {/* MOBILE TAB GRID */}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:flex md:justify-center gap-2 mb-10 no-print">
           {['dashboard', 'manifest', 'revenue', 'refunds', 'complaints', 'scanner'].map((tab) => (
             <button key={tab} onClick={() => { setActiveTab(tab); setScanResult(null); }} className={`py-3 px-4 rounded-xl font-bold text-[10px] uppercase tracking-wider transition-all shadow-sm ${activeTab === tab ? 'bg-indigo-600 text-white shadow-lg' : 'bg-white dark:bg-slate-800 text-slate-500 hover:text-indigo-500'}`}>{tab}</button>
@@ -152,7 +153,6 @@ export default function Admin() {
         </div>
 
         <AnimatePresence mode="wait">
-          {/* DASHBOARD TAB */}
           {activeTab === 'dashboard' && (
             <motion.div key="dashboard" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="grid grid-cols-1 lg:grid-cols-12 gap-8">
               <div className="lg:col-span-4 bg-white dark:bg-slate-800 p-8 rounded-[3rem] border dark:border-slate-700 shadow-2xl h-fit">
@@ -232,12 +232,12 @@ export default function Admin() {
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
                 <div className="lg:col-span-7 bg-white dark:bg-slate-800 rounded-[3.5rem] border dark:border-slate-700 shadow-2xl overflow-hidden h-fit">
                    <div className="p-8 border-b dark:border-slate-700 flex justify-between items-center bg-slate-50/30"><h3 className="font-extrabold uppercase text-sm">Revenue Directory</h3><RefreshCw onClick={fetchRevenue} size={18} className="text-slate-400 cursor-pointer" /></div>
-                    {revenueData.busStats?.map((stat) => (
-                      <div key={stat._id} onClick={() => { setSelectedBusStat(stat); setDateRevenue(null); }} className="p-6 flex justify-between items-center cursor-pointer border-b dark:border-slate-700 hover:bg-indigo-50 dark:hover:bg-indigo-950 transition-colors">
-                        <div><p className="text-xs font-black uppercase">{stat.details?.name}</p><p className="text-[10px] text-slate-400 font-mono">{stat.details?.registrationNumber}</p></div>
-                        <p className="text-lg font-black text-indigo-600">₹{stat.revenue}</p>
-                      </div>
-                    ))}
+                   {revenueData.busStats?.map((stat) => (
+                     <div key={stat._id} onClick={() => { setSelectedBusStat(stat); setDateRevenue(null); }} className="p-6 flex justify-between items-center cursor-pointer border-b dark:border-slate-700 hover:bg-indigo-50 dark:hover:bg-indigo-950 transition-colors">
+                       <div><p className="text-xs font-black uppercase">{stat.details?.name}</p><p className="text-[10px] text-slate-400 font-mono">{stat.details?.registrationNumber}</p></div>
+                       <p className="text-lg font-black text-indigo-600">₹{stat.revenue}</p>
+                     </div>
+                   ))}
                 </div>
                 <div className="lg:col-span-5 h-fit">
                    <div className="bg-white dark:bg-slate-800 p-8 rounded-[3rem] border dark:border-slate-700 shadow-2xl">
@@ -252,8 +252,8 @@ export default function Admin() {
                         </div>
                         {dateRevenue !== null && (
                           <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="p-8 bg-indigo-50 dark:bg-indigo-900/40 rounded-[2rem] text-center border border-indigo-100">
-                             <p className="text-[10px] font-bold text-indigo-400 uppercase mb-2">Revenue on {filterDate}</p>
-                             <h4 className="text-4xl font-black text-indigo-600 tracking-tighter">₹{dateRevenue}</h4>
+                              <p className="text-[10px] font-bold text-indigo-400 uppercase mb-2">Revenue on {filterDate}</p>
+                              <h4 className="text-4xl font-black text-indigo-600 tracking-tighter">₹{dateRevenue}</h4>
                           </motion.div>
                         )}
                       </div>
@@ -302,13 +302,13 @@ export default function Admin() {
                 complaints.map((c) => (
                   <div key={c._id} className="bg-white dark:bg-slate-800 p-6 rounded-[2.5rem] border dark:border-slate-700 shadow-lg flex flex-col justify-between">
                     <div className="mb-4">
-                       <span className={`px-3 py-1 rounded-full text-[9px] font-bold uppercase border ${c.status === 'Resolved' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>{c.status}</span>
-                       <h3 className="font-extrabold uppercase text-sm mt-3">{c.category}</h3>
-                       <p className="text-xs text-slate-500 mt-2 italic">"{c.message}"</p>
+                        <span className={`px-3 py-1 rounded-full text-[9px] font-bold uppercase border ${c.status === 'Resolved' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>{c.status}</span>
+                        <h3 className="font-extrabold uppercase text-sm mt-3">{c.category}</h3>
+                        <p className="text-xs text-slate-500 mt-2 italic">"{c.message}"</p>
                     </div>
                     <div className="flex justify-between items-center pt-4 border-t dark:border-slate-700 mt-4">
-                       <p className="text-[10px] font-black uppercase">{c.name}</p>
-                       {c.status === 'Pending' && <button onClick={() => handleResolveComplaint(c._id)} className="bg-emerald-600 text-white px-5 py-2 rounded-xl text-[9px] font-black uppercase active:scale-95 transition-all">Resolve</button>}
+                        <p className="text-[10px] font-black uppercase">{c.name}</p>
+                        {c.status === 'Pending' && <button onClick={() => handleResolveComplaint(c._id)} className="bg-emerald-600 text-white px-5 py-2 rounded-xl text-[9px] font-black uppercase active:scale-95 transition-all">Resolve</button>}
                     </div>
                   </div>
                 ))
@@ -318,22 +318,118 @@ export default function Admin() {
 
           {activeTab === 'scanner' && (
             <motion.div key="scanner" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="max-w-md mx-auto">
-              <div className="bg-white dark:bg-slate-800 p-8 rounded-[3rem] border dark:border-slate-700 shadow-2xl text-center">
-                <div className="flex justify-between items-center mb-8"><h2 className="text-sm font-black uppercase tracking-widest">QR Sensor</h2><button onClick={() => isScannerEnabled ? stopScanner() : startScanner()} className={`px-6 py-3 rounded-xl text-[10px] font-bold uppercase transition-all shadow-md ${isScannerEnabled ? 'bg-red-50 text-red-500' : 'bg-indigo-600 text-white'}`}>{isScannerEnabled ? 'STOP' : 'START'}</button></div>
-                <div className="relative rounded-[2.5rem] bg-slate-950 aspect-square flex items-center justify-center overflow-hidden border-[6px] border-slate-900 shadow-inner">
-                   <div id="reader" className="w-full h-full"></div>
-                   {!isScannerEnabled && <Scan size={60} className="text-slate-800 animate-pulse" />}
-                </div>
-                {scanResult && (
-                  <div className={`mt-6 p-5 rounded-2xl border-2 ${scanResult.status === 'success' ? 'bg-indigo-50 border-indigo-200' : 'bg-red-50 border-red-200'}`}>
-                    <h3 className={`text-lg font-black uppercase mb-1 ${scanResult.status === 'success' ? 'text-indigo-600' : 'text-red-600'}`}>{scanResult.message}</h3>
-                    <p className="text-xs font-bold text-slate-600">{scanResult.booking?.customerName}</p>
-                    {scanResult.status === 'success' && <button onClick={handleConfirmBoarding} disabled={boardingLoading} className="w-full mt-3 py-3 bg-indigo-600 text-white rounded-xl font-bold uppercase text-[10px] shadow-lg">Confirm</button>}
+              <div className="bg-white dark:bg-slate-800 p-8 rounded-[3rem] border border-slate-100 dark:border-slate-700 shadow-2xl text-center">
+                
+                {/* Scanner Header */}
+                <div className="flex justify-between items-center mb-8">
+                  <div className="text-left">
+                    <h2 className="text-sm font-black uppercase tracking-widest">TICKET VERIFIER</h2>
+                    <p className="text-[9px] text-slate-400 font-bold uppercase">Validate Passenger Entry</p>
                   </div>
-                )}
-                <div className="mt-8 p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl">
-                   <select className="w-full bg-transparent text-[10px] font-black uppercase outline-none" value={selectedCameraId} onChange={(e) => setSelectedCameraId(e.target.value)}>
-                     {cameras.map(c => <option key={c.id} value={c.id}>{c.label || "Lens"}</option>)}
+                  <button 
+                    onClick={() => isScannerEnabled ? stopScanner() : startScanner()} 
+                    className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase transition-all shadow-lg active:scale-95 ${
+                      isScannerEnabled ? 'bg-rose-50 text-rose-500 border border-rose-100' : 'bg-indigo-600 text-white shadow-indigo-200 dark:shadow-none'
+                    }`}
+                  >
+                    {isScannerEnabled ? 'Disable Camera' : 'Enable Camera'}
+                  </button>
+                </div>
+
+                {/* Camera Viewport */}
+                <div className="relative rounded-[2.5rem] bg-slate-950 aspect-square flex items-center justify-center overflow-hidden border-[6px] border-white dark:border-slate-900 shadow-2xl">
+                   <div id="reader" className="w-full h-full object-cover"></div>
+                   {!isScannerEnabled && (
+                     <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/50 backdrop-blur-sm">
+                       <Scan size={60} className="text-indigo-400 opacity-50 animate-pulse" />
+                       <p className="text-[10px] font-black text-indigo-300 uppercase mt-4 tracking-widest">Sensor Offline</p>
+                     </div>
+                   )}
+                </div>
+
+                {/* Professional Result Display */}
+                <AnimatePresence>
+                  {scanResult && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 15 }} 
+                      animate={{ opacity: 1, y: 0 }} 
+                      className={`mt-8 p-6 rounded-[2rem] border-2 text-left relative overflow-hidden ${
+                        scanResult.status === 'success' ? 'bg-emerald-50/50 border-emerald-200 dark:bg-emerald-900/10 dark:border-emerald-800' : 
+                        scanResult.status === 'expired' ? 'bg-rose-50/50 border-rose-200 dark:bg-rose-900/10 dark:border-rose-800' : 
+                        'bg-indigo-50/50 border-indigo-200 dark:bg-indigo-900/10 dark:border-indigo-800'
+                      }`}
+                    >
+                      {/* Status Badge */}
+                      <div className={`absolute top-4 right-4 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-tighter border ${
+                         scanResult.status === 'success' ? 'bg-emerald-500 text-white border-emerald-400' :
+                         scanResult.status === 'expired' ? 'bg-rose-500 text-white border-rose-400' :
+                         scanResult.status === 'boarded_already' ? 'bg-amber-500 text-white border-amber-400' :
+                         'bg-indigo-500 text-white border-indigo-400'
+                      }`}>
+                        {scanResult.message}
+                      </div>
+
+                      <div className="flex items-center gap-4 mb-4">
+                        <div className={`p-3 rounded-2xl ${
+                           scanResult.status === 'success' ? 'bg-emerald-100 text-emerald-600' :
+                           scanResult.status === 'expired' ? 'bg-rose-100 text-rose-600' :
+                           'bg-indigo-100 text-indigo-600'
+                        }`}>
+                          {scanResult.status === 'success' ? <ShieldCheck size={24}/> : scanResult.status === 'expired' ? <XCircle size={24}/> : <Clock size={24}/>}
+                        </div>
+                        <div>
+                          <p className="text-[9px] font-bold text-slate-400 uppercase">Passenger Identified</p>
+                          <h3 className="text-base font-black uppercase tracking-tight text-slate-800 dark:text-white">
+                            {scanResult.booking?.customerName}
+                          </h3>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4 py-4 border-y border-black/5 dark:border-white/5 mb-4">
+                         <div>
+                            <p className="text-[8px] font-black text-slate-400 uppercase">Route</p>
+                            <p className="text-[11px] font-bold truncate">{scanResult.booking?.busId?.name || "Service"}</p>
+                         </div>
+                         <div>
+                            <p className="text-[8px] font-black text-slate-400 uppercase">Travel Date</p>
+                            <p className="text-[11px] font-bold">{scanResult.booking?.travelDate}</p>
+                         </div>
+                      </div>
+                      
+                      {/* Action Buttons */}
+                      {scanResult.status === 'success' ? (
+                        <button 
+                          onClick={handleConfirmBoarding} 
+                          disabled={boardingLoading} 
+                          className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] shadow-lg shadow-emerald-200 dark:shadow-none transition-all active:scale-95"
+                        >
+                          {boardingLoading ? 'Processing...' : 'Approve Boarding'}
+                        </button>
+                      ) : scanResult.status === 'expired' ? (
+                        <div className="w-full py-4 bg-rose-100 text-rose-600 rounded-2xl font-black uppercase text-[10px] text-center tracking-[0.2em] border border-rose-200">
+                          🚫 Access Denied: Expired
+                        </div>
+                      ) : (
+                        <div className="w-full py-4 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase text-[10px] text-center tracking-[0.2em] border border-slate-200 dark:bg-slate-900">
+                          🔒 {scanResult.status === 'future' ? 'Valid for Future Trip' : scanResult.message}
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Lens Selection */}
+                <div className="mt-8 p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-black/5 dark:border-white/5">
+                   <div className="flex items-center gap-2 mb-2 ml-1">
+                      <Camera size={12} className="text-slate-400" />
+                      <p className="text-[8px] font-black text-slate-400 uppercase">Select Optical Input</p>
+                   </div>
+                   <select 
+                     className="w-full bg-transparent text-[10px] font-black uppercase outline-none text-indigo-600 dark:text-indigo-400" 
+                     value={selectedCameraId} 
+                     onChange={(e) => setSelectedCameraId(e.target.value)}
+                   >
+                     {cameras.map(c => <option key={c.id} value={c.id} className="bg-white dark:bg-slate-900">{c.label || `Camera ${c.id.substring(0, 5)}`}</option>)}
                    </select>
                 </div>
               </div>

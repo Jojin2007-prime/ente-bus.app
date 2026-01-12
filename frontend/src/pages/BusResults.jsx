@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  Bus,
   ArrowLeft,
   Clock,
   IndianRupee,
@@ -14,6 +13,31 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+
+// ✅ YOUR CUSTOM BUS LOGO COMPONENT
+const CustomBusLogo = ({ size = "31.87" }) => (
+  <svg 
+    width={size} 
+    height="28.4" 
+    viewBox="0 0 100 80" 
+    xmlns="http://www.w3.org/2000/svg"
+    className="overflow-visible"
+  >
+    <defs>
+      <linearGradient id="busGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" style={{ stopColor: '#1e3a8a', stopOpacity: 1 }} />
+        <stop offset="100%" style={{ stopColor: '#9333ea', stopOpacity: 1 }} />
+      </linearGradient>
+    </defs>
+    <path d="M -10 75 Q 50 55 110 80" fill="none" stroke="#1f2937" strokeWidth="6" strokeLinecap="round" />
+    <path d="M -10 75 Q 50 55 110 80" fill="none" stroke="#fbbf24" strokeWidth="2" strokeLinecap="round" strokeDasharray="10,5" />
+    <path d="M 10 30 L 80 20 Q 95 18 95 40 L 95 55 Q 95 65 85 65 L 15 65 Q 5 65 5 55 L 5 40 Q 5 30 10 30 Z" fill="url(#busGradient)" stroke="white" strokeWidth="1" />
+    <path d="M 15 35 L 50 30 L 50 45 L 15 48 Z" fill="#e0f2fe" opacity="0.8" />
+    <path d="M 55 29 L 85 26 Q 90 26 90 40 L 90 45 L 55 45 Z" fill="#e0f2fe" opacity="0.8" />
+    <circle cx="25" cy="65" r="6" fill="#1f2937" stroke="gray" strokeWidth="1" />
+    <circle cx="75" cy="65" r="6" fill="#1f2937" stroke="gray" strokeWidth="1" />
+  </svg>
+);
 
 const CalendarClock = ({ size, className }) => (
   <svg 
@@ -41,7 +65,24 @@ export default function BusResults() {
   const queryParams = new URLSearchParams(location.search);
   const from = queryParams.get('from');
   const to = queryParams.get('to');
-  const travelDate = queryParams.get('date'); // Defined as travelDate for the button logic
+  const travelDate = queryParams.get('date');
+
+  // --- HELPER: FORMAT DATE TO DD/MM/YYYY ---
+  const formatDate = (dateString) => {
+    if (!dateString) return "Flexible Date";
+    const [year, month, day] = dateString.split('-');
+    return `${day}/${month}/${year}`;
+  };
+
+  // --- HELPER: FORMAT TIME TO 12HR CLOCK ---
+  const formatTime12h = (time24) => {
+    if (!time24) return "N/A";
+    const [hours, minutes] = time24.split(':');
+    let h = parseInt(hours);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    return `${h}:${minutes} ${ampm}`;
+  };
 
   useEffect(() => {
     const fetchBuses = async () => {
@@ -69,28 +110,17 @@ export default function BusResults() {
     fetchBuses();
   }, [from, to]);
 
-  // --- TIME CHECK LOGIC ---
   const isBusTimeOver = (departureTime, date) => {
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
-
-    // If no date provided, assume today
     const checkDate = date || todayStr;
-
-    // If the travel date is in the future, it's not over
     if (checkDate > todayStr) return false;
-    
-    // If the travel date is in the past, it's definitely over
     if (checkDate < todayStr) return true;
-
-    // If it is today, compare current time vs departure time
     const currentHours = now.getHours();
     const currentMinutes = now.getMinutes();
     const [busHours, busMinutes] = departureTime.split(':').map(Number);
-
     if (currentHours > busHours) return true;
     if (currentHours === busHours && currentMinutes >= busMinutes) return true;
-    
     return false;
   };
 
@@ -120,7 +150,8 @@ export default function BusResults() {
             </button>
             <div className="text-center">
               <h1 className="text-2xl md:text-3xl font-extrabold dark:text-white uppercase tracking-tighter flex items-center justify-center gap-3">
-                <Bus size={28} className="text-indigo-600"/> Available Trips
+                {/* ✅ REPLACED ICON WITH CUSTOM BUS LOGO */}
+                <CustomBusLogo size="45" /> Available Trips
               </h1>
               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.4em] mt-2">Fleet Selection Gateway</p>
             </div>
@@ -149,7 +180,7 @@ export default function BusResults() {
               </div>
               <div>
                 <p className="text-[9px] uppercase text-slate-400 tracking-widest font-bold mb-1">Schedule</p>
-                <p className="text-sm font-extrabold dark:text-white uppercase tracking-tight">{travelDate || 'Flexible Date'}</p>
+                <p className="text-sm font-extrabold dark:text-white uppercase tracking-tight">{formatDate(travelDate)}</p>
               </div>
             </div>
 
@@ -195,7 +226,7 @@ export default function BusResults() {
                     
                     <div className="flex flex-wrap items-center justify-center md:justify-start gap-8 text-[11px] text-slate-400 uppercase tracking-widest font-bold">
                        <span className="flex items-center gap-2.5">
-                          <Clock size={16} className="text-indigo-500"/> {bus.departureTime}
+                          <Clock size={16} className="text-indigo-500"/> {formatTime12h(bus.departureTime)}
                        </span>
                        <span className="flex items-center gap-2.5">
                           <Shield size={16} className="text-indigo-500"/> {bus.registrationNumber}
@@ -212,7 +243,6 @@ export default function BusResults() {
                       </div>
                     </div>
                     
-                    {/* UPDATED BUTTON LOGIC */}
                     <button
                       onClick={() => !isBusTimeOver(bus.departureTime, travelDate) && navigate(`/seats/${bus._id}?date=${travelDate || new Date().toISOString().split('T')[0]}`)}
                       disabled={isBusTimeOver(bus.departureTime, travelDate)}
@@ -230,8 +260,8 @@ export default function BusResults() {
               ))
             ) : !loading && !error && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-32 bg-white dark:bg-slate-800 rounded-[3.5rem] border-2 border-dashed border-slate-200 dark:border-slate-700 shadow-sm">
-                <Bus size={80} className="mx-auto text-slate-200 dark:text-slate-700 mb-6 opacity-40" />
-                <h2 className="text-sm font-bold uppercase text-slate-400 tracking-[0.3em]">No fleet matches found</h2>
+                <CustomBusLogo size="80" />
+                <h2 className="text-sm font-bold uppercase text-slate-400 tracking-[0.3em] mt-6">No fleet matches found</h2>
                 <button onClick={() => navigate('/')} className="mt-8 text-indigo-600 font-bold text-[10px] uppercase tracking-widest border-b-2 border-indigo-600 pb-1 hover:text-indigo-500 hover:border-indigo-500 transition-all">Modify Search Parameters</button>
               </motion.div>
             )}

@@ -2,6 +2,33 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Phone, Mail, Instagram, MapPin, Globe, ShieldCheck, Users, Clock, ArrowRight, Facebook, Twitter } from 'lucide-react';
 
+// ✅ CUSTOM BUS LOGO COMPONENT
+const BusLogo = () => {
+  return (
+    <svg 
+      width="31.87" 
+      height="28.4" 
+      viewBox="0 0 100 80" 
+      xmlns="http://www.w3.org/2000/svg"
+      className="overflow-visible"
+    >
+      <defs>
+        <linearGradient id="busGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" style={{ stopColor: '#1e3a8a', stopOpacity: 1 }} />
+          <stop offset="100%" style={{ stopColor: '#9333ea', stopOpacity: 1 }} />
+        </linearGradient>
+      </defs>
+      <path d="M -10 75 Q 50 55 110 80" fill="none" stroke="#1f2937" strokeWidth="6" strokeLinecap="round" />
+      <path d="M -10 75 Q 50 55 110 80" fill="none" stroke="#fbbf24" strokeWidth="2" strokeLinecap="round" strokeDasharray="10,5" />
+      <path d="M 10 30 L 80 20 Q 95 18 95 40 L 95 55 Q 95 65 85 65 L 15 65 Q 5 65 5 55 L 5 40 Q 5 30 10 30 Z" fill="url(#busGradient)" stroke="white" strokeWidth="1" />
+      <path d="M 15 35 L 50 30 L 50 45 L 15 48 Z" fill="#e0f2fe" opacity="0.8" />
+      <path d="M 55 29 L 85 26 Q 90 26 90 40 L 90 45 L 55 45 Z" fill="#e0f2fe" opacity="0.8" />
+      <circle cx="25" cy="65" r="6" fill="#1f2937" stroke="gray" strokeWidth="1" />
+      <circle cx="75" cy="65" r="6" fill="#1f2937" stroke="gray" strokeWidth="1" />
+    </svg>
+  );
+};
+
 export default function AboutUs() {
   
   const containerVariants = {
@@ -19,6 +46,15 @@ export default function AboutUs() {
       
       {/* HEADER SECTION */}
       <div className="bg-indigo-900 dark:bg-slate-950 text-white py-16 md:py-20 px-6 text-center border-b border-indigo-800 dark:border-slate-800 transition-colors">
+        {/* ✅ BUS LOGO ADDED HERE */}
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="flex justify-center mb-6"
+        >
+          <BusLogo />
+        </motion.div>
+
         <motion.h1 
           initial={{ opacity: 0, y: -20 }} 
           animate={{ opacity: 1, y: 0 }} 
