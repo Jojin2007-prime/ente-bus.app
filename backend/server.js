@@ -340,14 +340,14 @@ app.post('/api/admin/refund/:bookingId', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ✅ UPDATED: Ticket Verification Route with Expired/Future logic
+// --- ✅ UPDATED: Ticket Verification Route with Expired/Future/Boarded logic ---
 app.get('/api/admin/verify-ticket/:bookingId', async (req, res) => {
   try {
     const booking = await Booking.findById(req.params.bookingId).populate('busId');
     if (!booking) return res.status(404).json({ message: "Invalid Ticket", status: "invalid" });
 
     const today = new Date().toISOString().split('T')[0];
-    const travelDate = booking.travelDate; // Expected Format: YYYY-MM-DD
+    const travelDate = booking.travelDate; // Format: YYYY-MM-DD
 
     // 1. Check if already refunded
     if (booking.status === 'Refunded') {
@@ -365,7 +365,8 @@ app.get('/api/admin/verify-ticket/:bookingId', async (req, res) => {
     } else if (travelDate > today) {
       return res.json({ message: "Future Trip", status: "future", booking });
     } else {
-      return res.json({ message: "Valid for Today", status: "success", booking });
+      // It is today and status is 'Paid'
+      return res.json({ message: "Valid Ticket: Paid", status: "success", booking });
     }
 
   } catch (err) {
