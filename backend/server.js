@@ -340,7 +340,55 @@ app.post('/api/admin/refund/:bookingId', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// --- ✅ UPDATED: Ticket Verification Route with Expired/Future/Boarded logic ---
+// ✅ ADDED: USER-INITIATED AUTOMATIC REFUND (30 MIN WINDOW)
+app.post('/api/bookings/cancel/:bookingId', async (req, res) => {
+  try {
+    const booking = await Booking.findById(req.params.bookingId);
+    
+    if (!booking) {
+      return res.status(404).json({ success: false, message: "Booking not found" });
+    }
+
+    if (booking.status !== 'Paid') {
+      return res.status(400).json({ success: false, message: "Only paid tickets can be cancelled" });
+    }
+
+    // Security: Check if 30 minutes have passed since bookingDate
+    const now = new Date();
+    const bookingTime = new Date(booking.bookingDate);
+    const diffInMinutes = (now - bookingTime) / (1000 * 60);
+
+    if (diffInMinutes > 30) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Cancellation window (30 mins) has expired." 
+      });
+    }
+
+    // Trigger Razorpay Refund
+    if (booking.paymentId) {
+      await razorpay.payments.refund(booking.paymentId, {
+        amount: booking.amount * 100, // amount in paise
+        speed: 'optimum'
+      });
+    }
+
+    // Update Database Status
+    booking.status = 'Refunded';
+    await booking.save();
+
+    res.json({ 
+      success: true, 
+      message: "Ticket cancelled and refund initiated successfully." 
+    });
+
+  } catch (err) {
+    console.error("Refund Error:", err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ✅ UPDATED: Ticket Verification Route with Expired/Future logic
 app.get('/api/admin/verify-ticket/:bookingId', async (req, res) => {
   try {
     const booking = await Booking.findById(req.params.bookingId).populate('busId');
@@ -349,12 +397,12 @@ app.get('/api/admin/verify-ticket/:bookingId', async (req, res) => {
     const today = new Date().toISOString().split('T')[0];
     const travelDate = booking.travelDate; // Format: YYYY-MM-DD
 
-    // 1. Check if already refunded
+    // 1. Check if already Refunded
     if (booking.status === 'Refunded') {
       return res.json({ message: "Ticket Refunded", status: "refunded", booking });
     }
 
-    // 2. Check if already boarded
+    // 2. Check if already Boarded
     if (booking.status === 'Boarded') {
       return res.json({ message: "Already Boarded", status: "boarded_already", booking });
     }
